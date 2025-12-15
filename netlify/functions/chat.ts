@@ -173,4 +173,9 @@ export const handler: Handler = async (event) => {
   } catch (e: any) {
     console.error("chat error:", e?.response?.data || e);
     return {
-      statusCode
+      statusCode: 500,
+      headers: cors,
+      body: JSON.stringify({ error: e?.message || "Erreur serveur" }),
+    };
+  }
+};
