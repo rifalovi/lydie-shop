@@ -27,5 +27,7 @@
     "tailwindcss": "latest",
     "postcss": "latest",
     "autoprefixer": "latest"
+    "@vitejs/plugin-react": "latest"
+
   }
 }
