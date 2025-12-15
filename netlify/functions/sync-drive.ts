@@ -6,33 +6,54 @@ import pdf from "pdf-parse";
 import mammoth from "mammoth";
 import { createClient } from "@supabase/supabase-js";
 
+// --- OpenAI (embeddings pour RAG, optionnel si SUPABASE_* absent)
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Supabase (optionnel)
+// --- Supabase (optionnel)
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabase =
   supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
+// --- Lecture robuste de la private key (Base64 OU multi-ligne OU \n)
+function readGooglePrivateKey(): string {
+  // 1) Variable base64 (recommandée si coller multi-ligne pose souci)
+  const b64 = process.env.GOOGLE_PRIVATE_KEY_B64;
+  if (b64 && b64.trim().length > 0) {
+    try {
+      return Buffer.from(b64, "base64").toString("utf8");
+    } catch {
+      // on tente les autres formats
+    }
+  }
+
+  // 2) Clé brute (multi-ligne) ou 3) clé avec \n échappés
+  const raw = process.env.GOOGLE_PRIVATE_KEY || "";
+  return raw.replace(/\\n/g, "\n");
+}
+
 export const handler: Handler = async () => {
   try {
     const folderId = process.env.GDRIVE_FOLDER_ID;
     if (!folderId) throw new Error("GDRIVE_FOLDER_ID manquant");
-    if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
-      throw new Error("Variables Google manquantes (GOOGLE_CLIENT_EMAIL/GOOGLE_PRIVATE_KEY)");
+    if (!process.env.GOOGLE_CLIENT_EMAIL) throw new Error("GOOGLE_CLIENT_EMAIL manquant");
+
+    const privateKey = readGooglePrivateKey();
+    if (!privateKey.includes("BEGIN PRIVATE KEY")) {
+      throw new Error("GOOGLE_PRIVATE_KEY invalide (bloc PEM non détecté)");
     }
 
-    // ✅ Auth robuste avec GoogleAuth (et gestion des \n)
+    // ✅ Auth robuste via GoogleAuth
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+        private_key: privateKey,
       },
       scopes: ["https://www.googleapis.com/auth/drive.readonly"],
     });
     const drive = google.drive({ version: "v3", auth });
 
-    // ✅ Support des Drives partagés
+    // ✅ Supporte aussi les Drives partagés
     const list = await drive.files.list({
       q: `'${folderId}' in parents and trashed=false`,
       fields: "files(id, name, mimeType, modifiedTime)",
@@ -48,11 +69,14 @@ export const handler: Handler = async () => {
       const name = f.name || "Sans titre";
       const mime = f.mimeType || "";
 
-      // Téléchargement du contenu
-      const res = await drive.files.get({ fileId, alt: "media" }, { responseType: "arraybuffer" });
+      // Téléchargement du fichier
+      const res = await drive.files.get(
+        { fileId, alt: "media" },
+        { responseType: "arraybuffer" }
+      );
       const buf = Buffer.from(res.data as any);
 
-      // Extraction texte selon le type
+      // Extraction de texte selon le type
       let text = "";
       if (mime.includes("pdf")) {
         const parsed = await pdf(buf);
@@ -63,16 +87,18 @@ export const handler: Handler = async () => {
       } else if (mime.startsWith("text/") || name.toLowerCase().endsWith(".txt")) {
         text = buf.toString("utf-8");
       } else {
-        // Type non géré : on ignore
+        // type non géré → on ignore
         continue;
       }
 
-      // Découpage en morceaux
-      const chunks: string[] = [];
+      // Découpage en blocs (pour embeddings)
       const max = 1200;
-      for (let i = 0; i < text.length; i += max) chunks.push(text.slice(i, i + max));
+      const chunks: string[] = [];
+      for (let i = 0; i < text.length; i += max) {
+        chunks.push(text.slice(i, i + max));
+      }
 
-      // Indexation (si Supabase configuré)
+      // Indexation (si Supabase est configuré)
       if (supabase && chunks.length) {
         for (const c of chunks) {
           const emb = await openai.embeddings.create({
@@ -93,9 +119,17 @@ export const handler: Handler = async () => {
       indexed++;
     }
 
-    return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ indexed }) };
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ indexed }),
+    };
   } catch (e: any) {
     console.error(e);
-    return { statusCode: 500, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: e.message }) };
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: e.message }),
+    };
   }
 };
