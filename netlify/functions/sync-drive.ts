@@ -6,25 +6,25 @@ import pdf from "pdf-parse";
 import mammoth from "mammoth";
 import { createClient } from "@supabase/supabase-js";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
+// Supabase (insertion : on privilégie la service_role côté serveur)
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabase =
-  supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+  supabaseUrl && (supabaseServiceKey || supabaseAnonKey)
+    ? createClient(supabaseUrl, (supabaseServiceKey || supabaseAnonKey)!)
+    : null;
 
 // ——— Normalisation robuste du PEM ———
 function normalizePem(raw: string): string {
   let s = raw || "";
-  // convertir les \n échappés
-  s = s.replace(/\\n/g, "\n");
-  // retirer \r windows
-  s = s.replace(/\r/g, "");
-  // enlever guillemets englobants éventuels
+  s = s.replace(/\\n/g, "\n"); // convertir \n échappés
+  s = s.replace(/\r/g, "");    // retirer \r windows
   if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-    s = s.slice(1, -1);
+    s = s.slice(1, -1); // enlever guillemets englobants
   }
-  // nettoyer espaces parasites fin de ligne
   s = s
     .split("\n")
     .map((l) => l.replace(/\s+$/g, ""))
@@ -33,9 +33,9 @@ function normalizePem(raw: string): string {
   return s;
 }
 
-// ——— Récupérer les credentials depuis 3 sources ———
+// ——— Credentials Google depuis 3 sources ———
 function getGoogleCredentials(): { client_email: string; private_key: string } {
-  // 1) JSON complet en Base64 (recommandé)
+  // 1) JSON complet Base64 (recommandé)
   const jsonB64 = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_B64;
   if (jsonB64 && jsonB64.trim()) {
     const json = Buffer.from(jsonB64, "base64").toString("utf8");
@@ -43,15 +43,13 @@ function getGoogleCredentials(): { client_email: string; private_key: string } {
     creds.private_key = normalizePem(creds.private_key || "");
     return creds;
   }
-
-  // 2) clé privée en base64 seule + email à part
+  // 2) PEM Base64
   const keyB64 = process.env.GOOGLE_PRIVATE_KEY_B64;
   if (keyB64 && keyB64.trim()) {
     const pem = normalizePem(Buffer.from(keyB64, "base64").toString("utf8"));
     return { client_email: process.env.GOOGLE_CLIENT_EMAIL || "", private_key: pem };
   }
-
-  // 3) clé privée multi-ligne + email
+  // 3) PEM multi-ligne
   const pem = normalizePem(process.env.GOOGLE_PRIVATE_KEY || "");
   return { client_email: process.env.GOOGLE_CLIENT_EMAIL || "", private_key: pem };
 }
@@ -62,15 +60,16 @@ export const handler: Handler = async () => {
     if (!folderId) throw new Error("GDRIVE_FOLDER_ID manquant");
 
     const creds = getGoogleCredentials();
-    if (!creds.client_email) throw new Error("GOOGLE_CLIENT_EMAIL/`client_email` manquant");
-    if (!creds.private_key) throw new Error("private_key manquante");
+    if (!creds.client_email) throw new Error("GOOGLE_CLIENT_EMAIL / client_email manquant");
+    if (!creds.private_key) throw new Error("GOOGLE_PRIVATE_KEY manquante");
     if (
       !creds.private_key.includes("-----BEGIN PRIVATE KEY-----") ||
       !creds.private_key.includes("-----END PRIVATE KEY-----")
     ) {
-      throw new Error("private_key invalide (en-tête ou pied PEM absent)");
+      throw new Error("private_key invalide (en-tête/pied PEM absent)");
     }
 
+    // Auth Google (Drive Readonly)
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: creds.client_email,
@@ -80,7 +79,7 @@ export const handler: Handler = async () => {
     });
     const drive = google.drive({ version: "v3", auth });
 
-    // Supporte aussi les Drives partagés
+    // Lister les fichiers du dossier (compatible Drives partagés)
     const list = await drive.files.list({
       q: `'${folderId}' in parents and trashed=false`,
       fields: "files(id, name, mimeType, modifiedTime)",
@@ -96,12 +95,14 @@ export const handler: Handler = async () => {
       const name = f.name || "Sans titre";
       const mime = f.mimeType || "";
 
+      // Télécharger le contenu
       const res = await drive.files.get(
         { fileId, alt: "media" },
         { responseType: "arraybuffer" }
       );
       const buf = Buffer.from(res.data as any);
 
+      // Extraire le texte selon le type
       let text = "";
       if (mime.includes("pdf")) {
         const parsed = await pdf(buf);
@@ -112,25 +113,29 @@ export const handler: Handler = async () => {
       } else if (mime.startsWith("text/") || name.toLowerCase().endsWith(".txt")) {
         text = buf.toString("utf-8");
       } else {
+        // type non géré -> on ignore
         continue;
       }
 
-      const chunks: string[] = [];
+      // Découper en blocs pour l’index
       const max = 1200;
+      const chunks: string[] = [];
       for (let i = 0; i < text.length; i += max) chunks.push(text.slice(i, i + max));
 
+      // Indexation (embeddings → Supabase)
       if (supabase && chunks.length) {
         for (const c of chunks) {
           const emb = await openai.embeddings.create({
             model: process.env.OPENAI_EMBED_MODEL || "text-embedding-3-small",
             input: c,
           });
+          const vector = emb.data[0].embedding;
           await supabase.from("documents").insert({
             doc_id: fileId,
             title: name,
             content: c,
             source: `https://drive.google.com/open?id=${fileId}`,
-            embedding: emb.data[0].embedding,
+            embedding: vector,
           });
         }
       }
