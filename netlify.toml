@@ -4,21 +4,3 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["openai", "googleapis", "pdf-parse", "mammoth"]
-
-[[headers]]
-  for = "/api/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
-    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
-# Planification quotidienne 03:00 UTC de sync-drive
-[[scheduled.functions]]
-  name = "sync-drive"
-  cron = "0 3 * * *"
