@@ -1,26 +1,15 @@
 import type { Handler } from "@netlify/functions";
 import { google } from "googleapis";
-import OpenAI from "openai";
-import pdf from "pdf-parse";
-import mammoth from "mammoth";
-import { createClient } from "@supabase/supabase-js";
+// ...
+const auth = new google.auth.GoogleAuth({
+  credentials: {
+    client_email: process.env.GOOGLE_CLIENT_EMAIL,
+    private_key: (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+  },
+  scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+});
+const drive = google.drive({ version: "v3", auth });
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
-
-export const handler: Handler = async () => {
-  try {
-    if (!process.env.GDRIVE_FOLDER_ID) throw new Error("GDRIVE_FOLDER_ID manquant");
-
-    const auth = new google.auth.JWT(
-      process.env.GOOGLE_CLIENT_EMAIL,
-      undefined,
-      (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
-      ["https://www.googleapis.com/auth/drive.readonly"]
-    );
-    const drive = google.drive({ version: "v3", auth });
 
     const list = await drive.files.list({
       q: `'${process.env.GDRIVE_FOLDER_ID}' in parents and trashed=false`,
