@@ -2,26 +2,44 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { CheckCircle2, CreditCard, Truck, User } from "lucide-react";
 import { useCart, computeShipping } from "@/lib/cart";
-import { formatEUR } from "@/lib/format";
+import { formatEUR, cx } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { cx } from "@/lib/format";
 
 type Step = 1 | 2 | 3;
+type ShippingMethod = "COLISSIMO" | "MONDIAL_RELAY" | "CHRONOPOST";
+
+type AddressFields = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  street: string;
+  postalCode: string;
+  city: string;
+};
 
 export default function CheckoutPage() {
-  const router = useRouter();
   const lines = useCart((s) => s.lines);
   const subtotal = useCart((s) => s.subtotal());
-  const clear = useCart((s) => s.clear);
 
   const [step, setStep] = useState<Step>(1);
-  const [shippingMethod, setShippingMethod] = useState<
-    "COLISSIMO" | "MONDIAL_RELAY" | "CHRONOPOST"
-  >("COLISSIMO");
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>(
+    "COLISSIMO",
+  );
+  const [address, setAddress] = useState<AddressFields>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    street: "",
+    postalCode: "",
+    city: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const shipping = computeShipping(subtotal, shippingMethod);
   const total = subtotal + shipping;
@@ -32,11 +50,48 @@ export default function CheckoutPage() {
     { n: 3 as Step, label: "Paiement", icon: CreditCard },
   ];
 
-  const placeOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    // TODO: remplacer par un appel à Stripe Checkout / Payment Intents
-    clear();
-    router.push("/checkout/confirmation?orderNumber=LYD-2026-0042");
+  const updateAddress = (field: keyof AddressFields, value: string) =>
+    setAddress((a) => ({ ...a, [field]: value }));
+
+  const goToPayment = async () => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: lines.map((l) => ({
+            productId: l.productId,
+            variantId: l.variantId ?? null,
+            quantity: l.quantity,
+          })),
+          shippingMethod,
+          address: { ...address, country: "FR" },
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.url) {
+        setLoading(false);
+        setError(
+          data?.error ??
+            "Impossible de démarrer le paiement. Réessayez dans un instant.",
+        );
+        return;
+      }
+
+      // Redirection vers Stripe Checkout. Ne pas vider le panier ici :
+      // l'utilisateur peut annuler. Le panier sera vidé sur la page de
+      // confirmation après paiement réussi.
+      window.location.href = data.url;
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+      setError("Erreur réseau. Vérifiez votre connexion et réessayez.");
+    }
   };
 
   if (lines.length === 0) {
@@ -85,35 +140,77 @@ export default function CheckoutPage() {
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-[1fr_380px]">
-        <form onSubmit={placeOrder} className="space-y-6">
+        <div className="space-y-6">
           {step === 1 && (
             <div className="card-luxe p-6">
               <h2 className="font-serif text-2xl">Vos informations</h2>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <Input label="Prénom" name="firstName" required />
-                <Input label="Nom" name="lastName" required />
+                <Input
+                  label="Prénom"
+                  name="firstName"
+                  required
+                  value={address.firstName}
+                  onChange={(e) => updateAddress("firstName", e.target.value)}
+                />
+                <Input
+                  label="Nom"
+                  name="lastName"
+                  required
+                  value={address.lastName}
+                  onChange={(e) => updateAddress("lastName", e.target.value)}
+                />
                 <Input
                   label="Email"
                   name="email"
                   type="email"
                   required
                   className="sm:col-span-2"
+                  value={address.email}
+                  onChange={(e) => updateAddress("email", e.target.value)}
                 />
-                <Input label="Téléphone" name="phone" type="tel" />
+                <Input
+                  label="Téléphone"
+                  name="phone"
+                  type="tel"
+                  value={address.phone}
+                  onChange={(e) => updateAddress("phone", e.target.value)}
+                />
                 <Input
                   label="Adresse"
                   name="street"
                   required
                   className="sm:col-span-2"
+                  value={address.street}
+                  onChange={(e) => updateAddress("street", e.target.value)}
                 />
-                <Input label="Code postal" name="postalCode" required />
-                <Input label="Ville" name="city" required />
+                <Input
+                  label="Code postal"
+                  name="postalCode"
+                  required
+                  value={address.postalCode}
+                  onChange={(e) => updateAddress("postalCode", e.target.value)}
+                />
+                <Input
+                  label="Ville"
+                  name="city"
+                  required
+                  value={address.city}
+                  onChange={(e) => updateAddress("city", e.target.value)}
+                />
               </div>
               <Button
                 type="button"
                 className="mt-6 w-full"
                 onClick={() => setStep(2)}
                 size="lg"
+                disabled={
+                  !address.firstName ||
+                  !address.lastName ||
+                  !address.email ||
+                  !address.street ||
+                  !address.postalCode ||
+                  !address.city
+                }
               >
                 Continuer vers la livraison
               </Button>
@@ -186,7 +283,7 @@ export default function CheckoutPage() {
                   onClick={() => setStep(3)}
                   className="flex-1"
                 >
-                  Paiement
+                  Continuer
                 </Button>
               </div>
             </div>
@@ -196,46 +293,57 @@ export default function CheckoutPage() {
             <div className="card-luxe p-6">
               <h2 className="font-serif text-2xl">Paiement sécurisé</h2>
               <p className="mt-2 text-sm text-ink-muted">
-                Vos données bancaires sont chiffrées par Stripe — jamais stockées
-                sur nos serveurs.
+                Vous allez être redirigée vers la page de paiement sécurisée
+                Stripe. Vos données bancaires ne transitent jamais par nos
+                serveurs.
               </p>
-              <div className="mt-5 grid gap-4">
-                <Input
-                  label="Numéro de carte"
-                  name="cardNumber"
-                  placeholder="4242 4242 4242 4242"
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Expiration"
-                    name="expiry"
-                    placeholder="12/27"
-                  />
-                  <Input label="CVC" name="cvc" placeholder="123" />
-                </div>
-                <Input
-                  label="Nom sur la carte"
-                  name="cardName"
-                  placeholder="Marie Reine"
-                />
+
+              <div className="mt-6 rounded-luxe border border-borderSoft bg-rose-light/40 p-5 text-sm">
+                <p className="font-ui font-bold text-ink">
+                  Récapitulatif de livraison
+                </p>
+                <p className="mt-2 text-ink-muted">
+                  {address.firstName} {address.lastName}
+                  <br />
+                  {address.street}
+                  <br />
+                  {address.postalCode} {address.city}
+                  <br />
+                  {address.email}
+                </p>
               </div>
+
+              {error && (
+                <p className="mt-4 rounded-soft bg-rose-light/60 px-3 py-2 text-sm text-rose-dark">
+                  {error}
+                </p>
+              )}
+
               <div className="mt-6 flex gap-3">
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={() => setStep(2)}
                   className="flex-1"
+                  disabled={loading}
                 >
                   Retour
                 </Button>
-                <Button type="submit" className="flex-1">
+                <Button
+                  type="button"
+                  className="flex-1"
+                  onClick={goToPayment}
+                  disabled={loading}
+                >
                   <CheckCircle2 className="h-4 w-4" />
-                  Payer {formatEUR(total)}
+                  {loading
+                    ? "Redirection..."
+                    : `Payer ${formatEUR(total)}`}
                 </Button>
               </div>
             </div>
           )}
-        </form>
+        </div>
 
         <aside className="card-luxe h-fit p-6">
           <h2 className="font-serif text-xl">Votre commande</h2>

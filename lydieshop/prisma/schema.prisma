@@ -60,23 +60,28 @@ model Address {
 // ---------- PRODUITS ----------
 
 model Product {
-  id           String  @id @default(cuid())
-  slug         String  @unique
-  name         String
-  description  String  @db.Text
-  shortDesc    String
-  price        Decimal
-  comparePrice Decimal?
-  stock        Int      @default(0)
-  categoryId   String
-  tags         String[]
-  isFeatured   Boolean  @default(false)
-  isActive     Boolean  @default(true)
-  weight       Float?
-  seoTitle     String?
-  seoDesc      String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  name             String
+  description      String   @db.Text
+  shortDesc        String
+  price            Decimal
+  comparePrice     Decimal?
+  stock            Int      @default(0)
+  categoryId       String
+  tags             String[]
+  features         String[] @default([])
+  careInstructions String?  @db.Text
+  isFeatured       Boolean  @default(false)
+  isNew            Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  rating           Float    @default(0)
+  reviewCount      Int      @default(0)
+  weight           Float?
+  seoTitle         String?
+  seoDesc          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   category      Category        @relation(fields: [categoryId], references: [id])
   images        ProductImage[]

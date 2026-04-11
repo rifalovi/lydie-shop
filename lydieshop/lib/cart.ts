@@ -3,6 +3,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { CartLine } from "./types";
+import { SHIPPING, computeShipping } from "./shipping";
+
+export { SHIPPING, computeShipping };
 
 type CartState = {
   lines: CartLine[];
@@ -60,25 +63,3 @@ export const useCart = create<CartState>()(
   ),
 );
 
-// Règles de livraison par défaut
-export const SHIPPING = {
-  FREE_THRESHOLD: 60,
-  COLISSIMO: { label: "Colissimo", base: 5.9, delay: "2-3 jours ouvrés" },
-  MONDIAL_RELAY: {
-    label: "Mondial Relay",
-    base: 3.9,
-    delay: "3-5 jours ouvrés",
-  },
-  CHRONOPOST: { label: "Chronopost", base: 12.9, delay: "24h" },
-};
-
-export const computeShipping = (
-  subtotal: number,
-  method: keyof typeof SHIPPING = "COLISSIMO",
-) => {
-  if (method === "FREE_THRESHOLD") return 0;
-  const option = SHIPPING[method];
-  if (typeof option === "number") return 0;
-  if (subtotal >= SHIPPING.FREE_THRESHOLD) return 0;
-  return option.base;
-};

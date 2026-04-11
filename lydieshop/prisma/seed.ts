@@ -44,7 +44,22 @@ async function main() {
 
     await prisma.product.upsert({
       where: { slug: p.slug },
-      update: {},
+      update: {
+        name: p.name,
+        shortDesc: p.shortDesc,
+        description: p.description,
+        price: p.price,
+        comparePrice: p.comparePrice,
+        stock: p.stock,
+        categoryId: category.id,
+        tags: p.tags,
+        features: p.features,
+        careInstructions: p.careInstructions,
+        isFeatured: p.isFeatured,
+        isNew: p.isNew ?? false,
+        rating: p.rating,
+        reviewCount: p.reviewCount,
+      },
       create: {
         slug: p.slug,
         name: p.name,
@@ -55,7 +70,12 @@ async function main() {
         stock: p.stock,
         categoryId: category.id,
         tags: p.tags,
+        features: p.features,
+        careInstructions: p.careInstructions,
         isFeatured: p.isFeatured,
+        isNew: p.isNew ?? false,
+        rating: p.rating,
+        reviewCount: p.reviewCount,
         images: {
           create: p.images.map((url, position) => ({ url, position })),
         },

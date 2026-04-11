@@ -1,44 +1,37 @@
-import { products } from "@/lib/products";
-import { categories, getCategoryBySlug } from "@/lib/categories";
+import { listProducts } from "@/lib/data/products";
+import { getCategoryBySlug } from "@/lib/categories";
 import { ProductCard } from "@/components/shop/ProductCard";
 import { Filters } from "@/components/shop/Filters";
-import type { Product } from "@/lib/types";
 
 type SearchParams = {
   categorie?: string;
   tri?: string;
 };
 
-function applyFilters(list: Product[], params: SearchParams) {
-  let result = [...list];
-  if (params.categorie) {
-    result = result.filter((p) => p.categorySlug === params.categorie);
-  }
-  switch (params.tri) {
-    case "prix-asc":
-      result.sort((a, b) => a.price - b.price);
-      break;
-    case "prix-desc":
-      result.sort((a, b) => b.price - a.price);
-      break;
-    case "nouveautes":
-      result.sort((a, b) => Number(b.isNew ?? 0) - Number(a.isNew ?? 0));
-      break;
-    case "note":
-      result.sort((a, b) => b.rating - a.rating);
-      break;
-    default:
-      result.sort((a, b) => b.reviewCount - a.reviewCount);
-  }
-  return result;
-}
+const VALID_SORTS = [
+  "popularite",
+  "nouveautes",
+  "prix-asc",
+  "prix-desc",
+  "note",
+] as const;
 
-export default function BoutiquePage({
+export const dynamic = "force-dynamic";
+
+export default async function BoutiquePage({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
-  const filtered = applyFilters(products, searchParams);
+  const sort = (VALID_SORTS as readonly string[]).includes(searchParams.tri ?? "")
+    ? (searchParams.tri as (typeof VALID_SORTS)[number])
+    : undefined;
+
+  const products = await listProducts({
+    categorySlug: searchParams.categorie,
+    sort,
+  });
+
   const currentCategory = searchParams.categorie
     ? getCategoryBySlug(searchParams.categorie)
     : null;
@@ -87,12 +80,12 @@ export default function BoutiquePage({
         <div>
           <div className="mb-6 flex items-center justify-between">
             <p className="text-sm text-ink-muted">
-              <span className="font-bold text-ink">{filtered.length}</span>{" "}
-              produit{filtered.length > 1 ? "s" : ""}
+              <span className="font-bold text-ink">{products.length}</span>{" "}
+              produit{products.length > 1 ? "s" : ""}
             </p>
           </div>
 
-          {filtered.length === 0 ? (
+          {products.length === 0 ? (
             <div className="card-luxe p-12 text-center">
               <p className="font-serif text-xl">
                 Aucun produit ne correspond à vos critères
@@ -103,7 +96,7 @@ export default function BoutiquePage({
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-              {filtered.map((p) => (
+              {products.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
             </div>

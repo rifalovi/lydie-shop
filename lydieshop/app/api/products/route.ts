@@ -1,34 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { products } from "@/lib/products";
+import { listProducts } from "@/lib/data/products";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const VALID_SORTS = [
+  "popularite",
+  "nouveautes",
+  "prix-asc",
+  "prix-desc",
+  "note",
+] as const;
 
 // GET /api/products?categorie=perruques&tri=prix-asc
-// En production, remplacer par une requête Prisma paginée.
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const categorie = searchParams.get("categorie");
-  const tri = searchParams.get("tri");
+  const categorie = searchParams.get("categorie") ?? undefined;
+  const triRaw = searchParams.get("tri") ?? undefined;
+  const tri = (VALID_SORTS as readonly string[]).includes(triRaw ?? "")
+    ? (triRaw as (typeof VALID_SORTS)[number])
+    : undefined;
 
-  let result = [...products];
-  if (categorie) {
-    result = result.filter((p) => p.categorySlug === categorie);
+  try {
+    const products = await listProducts({ categorySlug: categorie, sort: tri });
+    return NextResponse.json({ products, count: products.length });
+  } catch (err) {
+    console.error("[/api/products] error", err);
+    return NextResponse.json(
+      { error: "Erreur lors de la récupération des produits." },
+      { status: 500 },
+    );
   }
-
-  switch (tri) {
-    case "prix-asc":
-      result.sort((a, b) => a.price - b.price);
-      break;
-    case "prix-desc":
-      result.sort((a, b) => b.price - a.price);
-      break;
-    case "note":
-      result.sort((a, b) => b.rating - a.rating);
-      break;
-    case "nouveautes":
-      result.sort((a, b) => Number(b.isNew ?? 0) - Number(a.isNew ?? 0));
-      break;
-    default:
-      result.sort((a, b) => b.reviewCount - a.reviewCount);
-  }
-
-  return NextResponse.json({ products: result, count: result.length });
 }

@@ -1,0 +1,158 @@
+import { Resend } from "resend";
+import { formatEUR } from "./format";
+
+// Resend est instancié uniquement si la clé est présente : ainsi le build et
+// le dev local fonctionnent même sans clé. Les envois seront silencieusement
+// ignorés et loggés.
+const apiKey = process.env.RESEND_API_KEY;
+const resend = apiKey ? new Resend(apiKey) : null;
+
+const FROM = process.env.EMAIL_FROM ?? "Lydie'shop <noreply@lydieshop.com>";
+
+type SendArgs = {
+  to: string;
+  subject: string;
+  html: string;
+};
+
+async function safeSend({ to, subject, html }: SendArgs) {
+  if (!resend) {
+    console.warn(
+      `[email] RESEND_API_KEY manquant — email "${subject}" non envoyé à ${to}`,
+    );
+    return;
+  }
+  try {
+    await resend.emails.send({ from: FROM, to, subject, html });
+  } catch (err) {
+    console.error("[email] envoi échoué", err);
+  }
+}
+
+const baseLayout = (title: string, body: string) => `
+<!doctype html>
+<html lang="fr">
+  <body style="margin:0;padding:0;background:#FFF9F5;font-family:'Helvetica Neue',Arial,sans-serif;color:#3D2B35;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#FFF9F5;padding:32px 0;">
+      <tr>
+        <td align="center">
+          <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #F2E0E6;border-radius:18px;overflow:hidden;">
+            <tr>
+              <td style="background:linear-gradient(135deg,#F8C8D4 0%,#C9A84C 100%);padding:24px;text-align:center;">
+                <h1 style="margin:0;font-family:'Georgia',serif;color:#ffffff;font-size:28px;">Lydie'shop</h1>
+                <p style="margin:6px 0 0;color:#FFF9F5;font-size:12px;letter-spacing:2px;text-transform:uppercase;">${title}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px 32px 24px;font-size:15px;line-height:1.6;">
+                ${body}
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#FDE8EE;padding:18px;text-align:center;font-size:12px;color:#9A7A2E;">
+                Lydie'shop — la boutique qui sublime les Reines 👑<br/>
+                <a href="https://lydieshop.com" style="color:#9A7A2E;text-decoration:underline;">lydieshop.com</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+export async function sendWelcomeEmail(args: { to: string; name?: string | null }) {
+  const firstName = args.name?.split(" ")[0] ?? "Reine";
+  const html = baseLayout(
+    "Bienvenue dans le cercle",
+    `
+    <p>Bonjour <strong>${firstName}</strong>,</p>
+    <p>Bienvenue chez <strong>Lydie'shop</strong>, l'écrin de celles qui ne passent jamais inaperçues. ✨</p>
+    <p>Pour célébrer votre arrivée, nous vous offrons <strong>10% sur votre première commande</strong> avec le code&nbsp;:</p>
+    <p style="text-align:center;margin:24px 0;">
+      <span style="display:inline-block;padding:14px 28px;background:#FDE8EE;border:2px dashed #E8A0B4;border-radius:12px;font-family:monospace;font-size:18px;letter-spacing:3px;color:#3D2B35;font-weight:bold;">REINE10</span>
+    </p>
+    <p>Vous bénéficiez aussi de <strong>100 points Couronne offerts</strong> sur votre compte fidélité.</p>
+    <p style="margin-top:28px;">Avec toute notre considération,<br/><em>L'équipe Lydie'shop</em></p>
+    `,
+  );
+  await safeSend({
+    to: args.to,
+    subject: "👑 Bienvenue chez Lydie'shop — votre code -10% à l'intérieur",
+    html,
+  });
+}
+
+export type OrderEmailItem = {
+  name: string;
+  quantity: number;
+  price: number;
+};
+
+export async function sendOrderConfirmationEmail(args: {
+  to: string;
+  orderNumber: string;
+  items: OrderEmailItem[];
+  subtotal: number;
+  shippingCost: number;
+  total: number;
+  shippingAddress: {
+    firstName: string;
+    lastName: string;
+    street: string;
+    postalCode: string;
+    city: string;
+    country?: string;
+  };
+}) {
+  const itemsHtml = args.items
+    .map(
+      (it) => `
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #F2E0E6;">${it.quantity}× ${it.name}</td>
+          <td align="right" style="padding:10px 0;border-bottom:1px solid #F2E0E6;font-weight:bold;">${formatEUR(it.price * it.quantity)}</td>
+        </tr>`,
+    )
+    .join("");
+
+  const html = baseLayout(
+    "Commande confirmée",
+    `
+    <p>Merci pour votre commande ! 👑</p>
+    <p>Votre commande <strong>${args.orderNumber}</strong> est confirmée et notre atelier la prépare avec soin. Vous recevrez un email avec votre numéro de suivi dès l'expédition (sous 24h ouvrées).</p>
+
+    <h3 style="font-family:'Georgia',serif;color:#3D2B35;margin-top:28px;border-bottom:2px solid #C9A84C;padding-bottom:6px;">Récapitulatif</h3>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
+      ${itemsHtml}
+      <tr>
+        <td style="padding:10px 0;color:#7A6770;">Sous-total</td>
+        <td align="right" style="padding:10px 0;">${formatEUR(args.subtotal)}</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 0;color:#7A6770;">Livraison</td>
+        <td align="right" style="padding:4px 0;">${args.shippingCost === 0 ? "Offerte" : formatEUR(args.shippingCost)}</td>
+      </tr>
+      <tr>
+        <td style="padding:14px 0 0;font-size:16px;font-weight:bold;">Total</td>
+        <td align="right" style="padding:14px 0 0;font-size:18px;font-weight:bold;color:#9A7A2E;">${formatEUR(args.total)}</td>
+      </tr>
+    </table>
+
+    <h3 style="font-family:'Georgia',serif;color:#3D2B35;margin-top:28px;border-bottom:2px solid #C9A84C;padding-bottom:6px;">Adresse de livraison</h3>
+    <p style="margin:8px 0;">
+      ${args.shippingAddress.firstName} ${args.shippingAddress.lastName}<br/>
+      ${args.shippingAddress.street}<br/>
+      ${args.shippingAddress.postalCode} ${args.shippingAddress.city}<br/>
+      ${args.shippingAddress.country ?? "France"}
+    </p>
+
+    <p style="margin-top:28px;">Avec toute notre gratitude,<br/><em>L'équipe Lydie'shop</em></p>
+    `,
+  );
+
+  await safeSend({
+    to: args.to,
+    subject: `✨ Commande ${args.orderNumber} confirmée — Lydie'shop`,
+    html,
+  });
+}

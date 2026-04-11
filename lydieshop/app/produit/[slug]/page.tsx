@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Truck, RefreshCcw, ShieldCheck, Share2 } from "lucide-react";
-import { getProductBySlug, getRelatedProducts } from "@/lib/products";
+import { getProductBySlug, getRelatedProducts } from "@/lib/data/products";
 import { formatEUR } from "@/lib/format";
 import { Badge } from "@/components/ui/Badge";
 import { StarRating } from "@/components/ui/StarRating";
@@ -9,15 +9,17 @@ import { ProductGallery } from "@/components/shop/ProductGallery";
 import { AddToCart } from "@/components/shop/AddToCart";
 import { ProductCard } from "@/components/shop/ProductCard";
 
-export function generateStaticParams() {
-  return [];
-}
+export const dynamic = "force-dynamic";
 
-export default function ProductPage({ params }: { params: { slug: string } }) {
-  const product = getProductBySlug(params.slug);
+export default async function ProductPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const product = await getProductBySlug(params.slug);
   if (!product) notFound();
 
-  const related = getRelatedProducts(product.id);
+  const related = await getRelatedProducts(product.id);
   const hasSale = product.comparePrice && product.comparePrice > product.price;
 
   return (

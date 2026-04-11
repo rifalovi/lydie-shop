@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ShopChrome } from "@/components/shop/ShopChrome";
+import { SessionProvider } from "@/components/providers/SessionProvider";
 
 export const metadata: Metadata = {
   title: {
@@ -51,7 +52,9 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <ShopChrome>{children}</ShopChrome>
+        <SessionProvider>
+          <ShopChrome>{children}</ShopChrome>
+        </SessionProvider>
       </body>
     </html>
   );
