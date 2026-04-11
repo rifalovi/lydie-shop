@@ -245,6 +245,67 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Knowledge base (RAG chunks — queried by the analytical note generator)
+CREATE TABLE IF NOT EXISTS knowledge_base (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id UUID REFERENCES knowledge_documents(id) ON DELETE CASCADE,
+  title TEXT,
+  source TEXT,
+  content TEXT NOT NULL,
+  tags TEXT[],
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE knowledge_base ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated users can read knowledge_base" ON knowledge_base FOR SELECT
+  USING (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can insert knowledge_base" ON knowledge_base FOR INSERT
+  WITH CHECK (auth.role() = 'authenticated');
+CREATE INDEX IF NOT EXISTS idx_knowledge_base_content ON knowledge_base USING gin (to_tsvector('french', content));
+
+-- Analytical notes (generated with Claude)
+CREATE TABLE IF NOT EXISTS analytical_notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  subject TEXT NOT NULL,
+  scope_projects UUID[] DEFAULT ARRAY[]::UUID[],
+  scope_ps TEXT[] DEFAULT ARRAY[]::TEXT[],
+  scope_countries TEXT[] DEFAULT ARRAY[]::TEXT[],
+  period_start DATE,
+  period_end DATE,
+  sections_selected TEXT[] DEFAULT ARRAY[]::TEXT[],
+  detail_level TEXT DEFAULT 'standard', -- synthetique, standard, approfondi
+  audience TEXT DEFAULT 'equipe_projet',
+  content TEXT,
+  status TEXT DEFAULT 'draft', -- draft, generating, completed, failed
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE analytical_notes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can CRUD own analytical notes" ON analytical_notes FOR ALL
+  USING (auth.uid() = user_id);
+
+-- Public share links for analytical notes (7-day expiry by default)
+CREATE TABLE IF NOT EXISTS note_shares (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  note_id UUID REFERENCES analytical_notes(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE note_shares ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage shares of their notes" ON note_shares FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM analytical_notes
+      WHERE analytical_notes.id = note_shares.note_id
+        AND analytical_notes.user_id = auth.uid()
+    )
+  );
+
 -- Auto-create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$

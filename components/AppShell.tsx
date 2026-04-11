@@ -9,6 +9,7 @@ import {
   Rocket,
   BarChart3,
   FileSearch,
+  FileText,
   MessageCircle,
   LogOut,
   Menu,
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/modules/indicateurs", label: "Indicateurs SMART", icon: BarChart3 },
   { href: "/modules/cmr", label: "Cadre de mesure (CMR)", icon: Target },
   { href: "/modules/analyse-era", label: "Analyse ERA", icon: FileSearch },
+  { href: "/analyse-documentaire", label: "Analyse documentaire", icon: FileText },
   { href: "/chat", label: "Chat Assistant", icon: MessageCircle },
   { href: "/admin", label: "Administration", icon: Shield },
 ];

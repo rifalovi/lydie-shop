@@ -181,6 +181,47 @@ export interface CmrConfig {
   updated_at: string;
 }
 
+export type AnalyticalNoteStatus = "draft" | "generating" | "completed" | "failed";
+
+export interface AnalyticalNote {
+  id: string;
+  user_id: string;
+  subject: string;
+  scope_projects: string[];
+  scope_ps: string[];
+  scope_countries: string[];
+  period_start: string | null;
+  period_end: string | null;
+  sections_selected: string[];
+  detail_level: "synthetique" | "standard" | "approfondi";
+  audience: string;
+  content: string | null;
+  status: AnalyticalNoteStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteShare {
+  id: string;
+  note_id: string;
+  token: string;
+  expires_at: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export const ANALYTICAL_NOTE_SECTIONS = [
+  { value: "introduction", label: "1. Introduction et contexte" },
+  { value: "objectifs", label: "2. Objectifs de l'analyse" },
+  { value: "methodologie", label: "3. Méthodologie" },
+  { value: "analyse_projets", label: "4. Analyse par projet" },
+  { value: "contributions", label: "5. Contributions et résultats clés" },
+  { value: "enseignements", label: "6. Enseignements tirés" },
+  { value: "vigilance", label: "7. Points de vigilance" },
+  { value: "recommandations", label: "8. Recommandations stratégiques" },
+  { value: "annexes", label: "9. Annexes" },
+] as const;
+
 export const PROGRAMMES_STRATEGIQUES = [
   { value: "PS1", label: "PS1 — Langue française, diversité culturelle et linguistique" },
   { value: "PS2", label: "PS2 — Paix, démocratie, droits de l'Homme" },
