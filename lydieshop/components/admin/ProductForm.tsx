@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Sparkles, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -20,15 +21,21 @@ type GeneratedContent = {
 };
 
 export function ProductForm() {
+  const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [productName, setProductName] = useState("");
   const [category, setCategory] = useState("perruques");
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [price, setPrice] = useState("");
+  const [comparePrice, setComparePrice] = useState("");
   const [stock, setStock] = useState("");
+  const [weight, setWeight] = useState("");
+  const [isFeatured, setIsFeatured] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedContent | null>(null);
   const [images, setImages] = useState<UploadedImage[]>([]);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   const generate = async () => {
     setGenerating(true);
@@ -45,6 +52,77 @@ export function ProductForm() {
       }
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const publish = async () => {
+    setPublishError(null);
+
+    if (images.length === 0) {
+      setPublishError("Ajoutez au moins une image.");
+      setStep(1);
+      return;
+    }
+    if (!productName.trim()) {
+      setPublishError("Le nom du produit est requis.");
+      setStep(2);
+      return;
+    }
+    const priceNumber = Number(price);
+    if (!price || Number.isNaN(priceNumber) || priceNumber <= 0) {
+      setPublishError("Le prix est requis et doit être positif.");
+      return;
+    }
+    const stockNumber = Number(stock || "0");
+
+    // Si l'IA n'a pas été invoquée, on part des infos saisies manuellement.
+    const fallbackShort =
+      additionalInfo.split(/\n|\. /)[0]?.slice(0, 280) || productName;
+    const fallbackDesc =
+      additionalInfo.trim() || `${productName} — fiche produit à compléter.`;
+
+    const payload = {
+      name: productName.trim(),
+      categorySlug: category,
+      shortDesc: generated?.shortDesc || fallbackShort,
+      description: generated?.description || fallbackDesc,
+      price: priceNumber,
+      comparePrice: comparePrice ? Number(comparePrice) : null,
+      stock: stockNumber,
+      weight: weight ? Number(weight) : null,
+      tags: generated?.tags ?? [],
+      features: generated?.features ?? [],
+      careInstructions: generated?.careInstructions ?? null,
+      seoTitle: generated?.seoTitle ?? null,
+      seoDesc: generated?.seoDesc ?? null,
+      isFeatured,
+      isNew: true,
+      images: images.map((img) => ({ url: img.url })),
+    };
+
+    setPublishing(true);
+    try {
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setPublishError(
+          data?.error ?? "Enregistrement impossible. Réessayez.",
+        );
+        return;
+      }
+
+      router.push("/admin/produits");
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      setPublishError("Erreur réseau pendant la publication.");
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -238,6 +316,8 @@ export function ProductForm() {
               label="Prix barré (€)"
               type="number"
               step="0.01"
+              value={comparePrice}
+              onChange={(e) => setComparePrice(e.target.value)}
               placeholder="299.00"
             />
             <Input
@@ -247,13 +327,20 @@ export function ProductForm() {
               onChange={(e) => setStock(e.target.value)}
               placeholder="12"
             />
-            <Input label="Poids (g)" type="number" placeholder="450" />
+            <Input
+              label="Poids (g)"
+              type="number"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              placeholder="450"
+            />
           </div>
 
-          <div className="flex items-center gap-3 rounded-soft bg-gradient-rose-soft p-4">
+          <label className="flex cursor-pointer items-center gap-3 rounded-soft bg-gradient-rose-soft p-4">
             <input
               type="checkbox"
-              defaultChecked
+              checked={isFeatured}
+              onChange={(e) => setIsFeatured(e.target.checked)}
               className="h-4 w-4 accent-rose-dark"
             />
             <div>
@@ -262,13 +349,32 @@ export function ProductForm() {
                 Apparaît dans les bestsellers de la page d&apos;accueil.
               </p>
             </div>
-          </div>
+          </label>
+
+          {publishError && (
+            <p className="rounded-soft bg-rose-light/60 px-3 py-2 text-sm text-rose-dark">
+              {publishError}
+            </p>
+          )}
 
           <div className="flex justify-between">
-            <Button variant="secondary" onClick={() => setStep(3)}>
+            <Button
+              variant="secondary"
+              onClick={() => setStep(3)}
+              disabled={publishing}
+            >
               ← Retour
             </Button>
-            <Button size="lg">Publier le produit</Button>
+            <Button size="lg" onClick={publish} disabled={publishing}>
+              {publishing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Publication...
+                </>
+              ) : (
+                "Publier le produit"
+              )}
+            </Button>
           </div>
         </div>
       )}

@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recomputeProductRating } from "@/lib/reviews";
+import { sendReviewApprovedEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,7 +76,10 @@ export async function PATCH(req: NextRequest) {
 
   const review = await prisma.review.findUnique({
     where: { id },
-    select: { id: true, productId: true },
+    include: {
+      user: { select: { email: true, name: true } },
+      product: { select: { id: true, name: true, slug: true } },
+    },
   });
   if (!review) {
     return NextResponse.json({ error: "Avis introuvable." }, { status: 404 });
@@ -90,8 +94,25 @@ export async function PATCH(req: NextRequest) {
     } else {
       await tx.review.delete({ where: { id } });
     }
-    await recomputeProductRating(review.productId, tx as typeof prisma);
+    await recomputeProductRating(review.product.id, tx as typeof prisma);
   });
+
+  // Notifie la cliente lors d'une approbation — best effort.
+  if (action === "approve" && review.user.email) {
+    const baseUrl =
+      process.env.NEXTAUTH_URL?.replace(/\/$/, "") ?? "https://lydieshop.com";
+    sendReviewApprovedEmail({
+      to: review.user.email,
+      customerName: review.user.name,
+      productName: review.product.name,
+      productUrl: `${baseUrl}/produit/${review.product.slug}`,
+      rating: review.rating,
+      title: review.title,
+      comment: review.comment,
+    }).catch((e) =>
+      console.error("[admin/reviews PATCH] email error", e),
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

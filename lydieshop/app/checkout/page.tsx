@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { CheckCircle2, CreditCard, Truck, User } from "lucide-react";
 import { useCart, computeShipping } from "@/lib/cart";
+import { useRewardStore } from "@/lib/reward-store";
 import { formatEUR, cx } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -24,6 +25,7 @@ type AddressFields = {
 export default function CheckoutPage() {
   const lines = useCart((s) => s.lines);
   const subtotal = useCart((s) => s.subtotal());
+  const reward = useRewardStore((s) => s.reward);
 
   const [step, setStep] = useState<Step>(1);
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>(
@@ -42,7 +44,10 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
 
   const shipping = computeShipping(subtotal, shippingMethod);
-  const total = subtotal + shipping;
+  const rewardAmount = reward
+    ? Math.min(reward.discount, subtotal)
+    : 0;
+  const total = Math.max(0, subtotal + shipping - rewardAmount);
 
   const steps = [
     { n: 1 as Step, label: "Informations", icon: User },
@@ -69,6 +74,7 @@ export default function CheckoutPage() {
           })),
           shippingMethod,
           address: { ...address, country: "FR" },
+          reward: reward ?? null,
         }),
       });
 
@@ -389,6 +395,12 @@ export default function CheckoutPage() {
                 {shipping === 0 ? "Offerte" : formatEUR(shipping)}
               </dd>
             </div>
+            {rewardAmount > 0 && reward && (
+              <div className="flex justify-between text-gold-dark">
+                <dt>Points Couronne ({reward.points} pts)</dt>
+                <dd className="font-num">-{formatEUR(rewardAmount)}</dd>
+              </div>
+            )}
           </dl>
           <div className="my-4 h-px bg-borderSoft" />
           <div className="flex justify-between">

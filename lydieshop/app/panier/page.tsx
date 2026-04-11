@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { Minus, Plus, ShoppingBag, Trash2, Tag } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useCart, SHIPPING, computeShipping } from "@/lib/cart";
-import { formatEUR } from "@/lib/format";
+import { useRewardStore } from "@/lib/reward-store";
+import { REWARDS } from "@/lib/loyalty";
+import { formatEUR, cx } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
+import { CrownIcon } from "@/components/ui/Crown";
 
 export default function CartPage() {
   const lines = useCart((s) => s.lines);
@@ -14,6 +18,33 @@ export default function CartPage() {
   const subtotalFn = useCart((s) => s.subtotal);
   const subtotal = subtotalFn();
 
+  const { data: session, status: sessionStatus } = useSession();
+  const reward = useRewardStore((s) => s.reward);
+  const selectReward = useRewardStore((s) => s.select);
+  const [loyaltyPoints, setLoyaltyPoints] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Charge le solde "live" quand la cliente est connectée.
+    if (sessionStatus !== "authenticated" || !session?.user) {
+      setLoyaltyPoints(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/user/me");
+        if (!res.ok) return;
+        const data = (await res.json()) as { loyaltyPoints: number };
+        if (!cancelled) setLoyaltyPoints(data.loyaltyPoints);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionStatus, session]);
+
   const [promo, setPromo] = useState("");
   const [promoApplied, setPromoApplied] = useState<{
     code: string;
@@ -21,8 +52,21 @@ export default function CartPage() {
   } | null>(null);
 
   const shipping = computeShipping(subtotal);
-  const discount = promoApplied?.amount ?? 0;
+  const promoAmount = promoApplied?.amount ?? 0;
+  // Une récompense ne peut jamais rendre le sous-total négatif.
+  const rewardAmount = reward
+    ? Math.min(reward.discount, Math.max(0, subtotal - promoAmount))
+    : 0;
+  const discount = promoAmount + rewardAmount;
   const total = Math.max(0, subtotal + shipping - discount);
+
+  // Si le sous-total descend en dessous de la valeur de la récompense
+  // sélectionnée, on la désélectionne pour éviter les incohérences.
+  useEffect(() => {
+    if (reward && subtotal < reward.discount) {
+      selectReward(null);
+    }
+  }, [reward, subtotal, selectReward]);
 
   const applyPromo = () => {
     if (promo.toUpperCase() === "REINE10") {
@@ -162,11 +206,19 @@ export default function CartPage() {
                 {shipping === 0 ? "Offerte" : formatEUR(shipping)}
               </dd>
             </div>
-            {discount > 0 && (
+            {promoAmount > 0 && (
               <div className="flex justify-between text-rose-dark">
                 <dt>Code {promoApplied?.code}</dt>
                 <dd className="font-num font-semibold">
-                  -{formatEUR(discount)}
+                  -{formatEUR(promoAmount)}
+                </dd>
+              </div>
+            )}
+            {rewardAmount > 0 && (
+              <div className="flex justify-between text-gold-dark">
+                <dt>Points Couronne ({reward?.points} pts)</dt>
+                <dd className="font-num font-semibold">
+                  -{formatEUR(rewardAmount)}
                 </dd>
               </div>
             )}
@@ -180,6 +232,85 @@ export default function CartPage() {
               </div>
             )}
           </dl>
+
+          {loyaltyPoints !== null && (
+            <div className="mt-5 rounded-luxe border border-gold/40 bg-gradient-rose-soft p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-gold-dark">
+                  <CrownIcon className="h-4 w-4" />
+                  <p className="font-ui text-xs font-bold uppercase tracking-widest">
+                    Points Couronne
+                  </p>
+                </div>
+                <p className="font-num text-sm font-bold text-ink">
+                  {loyaltyPoints.toLocaleString("fr-FR")} pts
+                </p>
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {REWARDS.map((r) => {
+                  const affordable = loyaltyPoints >= r.points;
+                  const fitsCart = subtotal >= r.discount;
+                  const selected =
+                    reward?.points === r.points &&
+                    reward?.discount === r.discount;
+                  const disabled = !affordable || !fitsCart;
+                  return (
+                    <button
+                      type="button"
+                      key={r.points}
+                      disabled={disabled}
+                      onClick={() =>
+                        selectReward(
+                          selected ? null : { points: r.points, discount: r.discount },
+                        )
+                      }
+                      className={cx(
+                        "flex w-full items-center justify-between rounded-soft border-2 px-3 py-2 text-left text-sm transition-all",
+                        selected
+                          ? "border-gold-dark bg-gold-light/40 text-gold-dark"
+                          : disabled
+                            ? "cursor-not-allowed border-borderSoft bg-white/50 text-ink-muted opacity-60"
+                            : "border-borderSoft bg-white text-ink hover:border-gold-dark",
+                      )}
+                    >
+                      <span className="font-ui font-semibold">
+                        {r.points} pts
+                      </span>
+                      <span className="font-num font-bold">
+                        -{formatEUR(r.discount)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {reward && (
+                <button
+                  type="button"
+                  onClick={() => selectReward(null)}
+                  className="mt-3 text-xs font-ui font-semibold text-rose-dark hover:underline"
+                >
+                  Annuler la récompense
+                </button>
+              )}
+              <p className="mt-2 text-[11px] text-ink-muted">
+                Une seule récompense par commande. Solde mis à jour après paiement.
+              </p>
+            </div>
+          )}
+
+          {sessionStatus === "unauthenticated" && (
+            <div className="mt-5 rounded-luxe bg-gradient-rose-soft p-4 text-xs text-ink-muted">
+              <Link
+                href="/login?callbackUrl=/panier"
+                className="font-ui font-semibold text-rose-dark hover:underline"
+              >
+                Connectez-vous
+              </Link>{" "}
+              pour utiliser vos points Couronne comme réduction.
+            </div>
+          )}
 
           <div className="mt-5">
             <label className="flex items-center gap-2 text-sm font-ui font-semibold text-ink">

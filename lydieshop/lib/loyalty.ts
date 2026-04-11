@@ -50,6 +50,21 @@ export const REWARDS = [
   { points: 2000, discount: 30 },
 ] as const;
 
+export type Reward = (typeof REWARDS)[number];
+
+// Retourne la récompense officielle correspondant à une paire reçue du
+// client, ou null si elle ne fait pas partie du barème.
+export function findReward(points: number, discount: number): Reward | null {
+  return (
+    REWARDS.find((r) => r.points === points && r.discount === discount) ?? null
+  );
+}
+
+// Retourne toutes les récompenses utilisables avec un solde donné.
+export function getAvailableRewards(points: number): Reward[] {
+  return REWARDS.filter((r) => r.points <= points);
+}
+
 export function computePointsForOrder(subtotal: number): number {
   if (subtotal <= 0) return 0;
   return Math.floor(subtotal * POINTS_PER_EURO);

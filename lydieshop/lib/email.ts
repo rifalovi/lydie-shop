@@ -89,12 +89,54 @@ export type OrderEmailItem = {
   price: number;
 };
 
+export async function sendReviewApprovedEmail(args: {
+  to: string;
+  customerName: string | null;
+  productName: string;
+  productUrl: string;
+  rating: number;
+  title?: string | null;
+  comment?: string | null;
+}) {
+  const firstName = args.customerName?.split(" ")[0] ?? "Reine";
+  const stars = "★".repeat(args.rating) + "☆".repeat(5 - args.rating);
+
+  const reviewBlock = `
+    <div style="margin-top:20px;padding:16px;background:#FDE8EE;border-radius:12px;border-left:4px solid #C9A84C;">
+      <p style="margin:0;font-size:18px;letter-spacing:2px;color:#C9A84C;">${stars}</p>
+      ${args.title ? `<p style="margin:8px 0 0;font-family:'Georgia',serif;font-size:18px;">${args.title}</p>` : ""}
+      ${args.comment ? `<p style="margin:8px 0 0;color:#3D2B35;">${args.comment}</p>` : ""}
+    </div>
+  `;
+
+  const html = baseLayout(
+    "Avis publié",
+    `
+    <p>Bonjour <strong>${firstName}</strong>,</p>
+    <p>Votre avis sur <strong>${args.productName}</strong> vient d'être publié sur Lydie'shop. Merci infiniment pour votre retour — il aidera les autres Reines à faire leur choix. ✨</p>
+    ${reviewBlock}
+    <p style="margin-top:24px;">
+      <a href="${args.productUrl}" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#F8C8D4 0%,#C9A84C 100%);color:#ffffff;text-decoration:none;border-radius:999px;font-weight:bold;">Voir votre avis →</a>
+    </p>
+    <p style="margin-top:24px;">En remerciement de votre partage, <strong>50 points Couronne</strong> seront crédités sur votre compte fidélité très bientôt.</p>
+    <p style="margin-top:24px;">Avec toute notre gratitude,<br/><em>L'équipe Lydie'shop</em></p>
+    `,
+  );
+
+  await safeSend({
+    to: args.to,
+    subject: `✨ Votre avis sur ${args.productName} est publié`,
+    html,
+  });
+}
+
 export async function sendOrderConfirmationEmail(args: {
   to: string;
   orderNumber: string;
   items: OrderEmailItem[];
   subtotal: number;
   shippingCost: number;
+  discount?: number;
   total: number;
   shippingAddress: {
     firstName: string;
@@ -115,6 +157,15 @@ export async function sendOrderConfirmationEmail(args: {
     )
     .join("");
 
+  const discountRow =
+    args.discount && args.discount > 0
+      ? `
+      <tr>
+        <td style="padding:4px 0;color:#9A7A2E;">Points Couronne</td>
+        <td align="right" style="padding:4px 0;color:#9A7A2E;">-${formatEUR(args.discount)}</td>
+      </tr>`
+      : "";
+
   const html = baseLayout(
     "Commande confirmée",
     `
@@ -132,6 +183,7 @@ export async function sendOrderConfirmationEmail(args: {
         <td style="padding:4px 0;color:#7A6770;">Livraison</td>
         <td align="right" style="padding:4px 0;">${args.shippingCost === 0 ? "Offerte" : formatEUR(args.shippingCost)}</td>
       </tr>
+      ${discountRow}
       <tr>
         <td style="padding:14px 0 0;font-size:16px;font-weight:bold;">Total</td>
         <td align="right" style="padding:14px 0 0;font-size:18px;font-weight:bold;color:#9A7A2E;">${formatEUR(args.total)}</td>

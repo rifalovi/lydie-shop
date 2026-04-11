@@ -86,6 +86,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   // Idempotence : si déjà payée, ne rien refaire.
   if (order.paymentStatus === "PAID") return;
 
+  // Lecture des points rachetés depuis les metadata Stripe.
+  const pointsRedeemed = Number(session.metadata?.pointsRedeemed ?? "0") || 0;
+
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: order.id },
@@ -107,20 +110,39 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       });
     }
 
-    // Attribution des points Couronne — uniquement pour les comptes
-    // enregistrés (les guests ne cumulent pas).
+    // Points Couronne — uniquement pour les comptes enregistrés (les guests
+    // ne cumulent pas et ne peuvent pas non plus dépenser).
     if (order.userId) {
-      const earned = computePointsForOrder(Number(order.subtotal));
-      if (earned > 0) {
-        const user = await tx.user.update({
-          where: { id: order.userId },
-          data: { loyaltyPoints: { increment: earned } },
-          select: { loyaltyPoints: true },
-        });
-        const newTier = computeTier(user.loyaltyPoints);
+      // 1) Dépense : décrément du solde si une récompense a été utilisée.
+      if (pointsRedeemed > 0) {
         await tx.user.update({
           where: { id: order.userId },
-          data: { tier: newTier },
+          data: { loyaltyPoints: { decrement: pointsRedeemed } },
+        });
+      }
+
+      // 2) Gain : points gagnés sur le sous-total NET (après remise).
+      const netSubtotal = Math.max(
+        0,
+        Number(order.subtotal) - Number(order.discount),
+      );
+      const earned = computePointsForOrder(netSubtotal);
+      if (earned > 0) {
+        await tx.user.update({
+          where: { id: order.userId },
+          data: { loyaltyPoints: { increment: earned } },
+        });
+      }
+
+      // 3) Recalcule le tier sur le solde final.
+      const refreshed = await tx.user.findUnique({
+        where: { id: order.userId },
+        select: { loyaltyPoints: true },
+      });
+      if (refreshed) {
+        await tx.user.update({
+          where: { id: order.userId },
+          data: { tier: computeTier(refreshed.loyaltyPoints) },
         });
       }
     }
@@ -153,6 +175,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       })),
       subtotal: Number(order.subtotal),
       shippingCost: Number(order.shippingCost),
+      discount: Number(order.discount),
       total: Number(order.total),
       shippingAddress: address,
     }).catch((e) => console.error("[stripe webhook] email error", e));
