@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { trackUsage } from "@/lib/usage";
 import type { Indicator } from "@/lib/types";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -154,6 +155,11 @@ ${JSON.stringify(baseQuestions.map(({ id, text, type }) => ({ id, text, type }))
           model: "claude-sonnet-4-6",
           max_tokens: 2048,
           messages: [{ role: "user", content: prompt }],
+        });
+        await trackUsage({
+          userId: user.id,
+          action: "questionnaire_generate",
+          usage: response.usage,
         });
         const text =
           response.content[0].type === "text" ? response.content[0].text : "[]";

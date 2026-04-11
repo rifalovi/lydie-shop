@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { trackUsage } from "@/lib/usage";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -15,6 +17,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const supabase = createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const userId = user?.id ?? null;
+
     const prompt = `Tu es un expert S&E de l'OIF. Reformule cette question d'enquête pour qu'elle soit claire, neutre, bienveillante et compréhensible par un bénéficiaire. La question doit rester compatible avec le type de réponse "${type ?? "texte_libre"}". Renvoie UNIQUEMENT la nouvelle formulation, sans guillemets ni commentaires. En français.
 
 Question originale : ${text}`;
@@ -24,6 +32,13 @@ Question originale : ${text}`;
       max_tokens: 512,
       messages: [{ role: "user", content: prompt }],
     });
+
+    await trackUsage({
+      userId,
+      action: "questionnaire_improve",
+      usage: response.usage,
+    });
+
     const out =
       response.content[0].type === "text"
         ? response.content[0].text.trim()

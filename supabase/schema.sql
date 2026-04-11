@@ -197,6 +197,54 @@ ALTER TABLE cmr_configs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can CRUD CMR via project" ON cmr_configs FOR ALL
   USING (EXISTS (SELECT 1 FROM projects WHERE projects.id = cmr_configs.project_id AND projects.user_id = auth.uid()));
 
+-- Usage limits (per user / per month token quota)
+CREATE TABLE IF NOT EXISTS usage_limits (
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  month_year TEXT NOT NULL,
+  tokens_used_this_month INTEGER NOT NULL DEFAULT 0,
+  monthly_token_limit INTEGER NOT NULL DEFAULT 50000,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (user_id, month_year)
+);
+
+ALTER TABLE usage_limits ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own usage" ON usage_limits FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Usage logs (per-call breakdown)
+CREATE TABLE IF NOT EXISTS usage_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  action TEXT NOT NULL,
+  tokens_input INTEGER NOT NULL DEFAULT 0,
+  tokens_output INTEGER NOT NULL DEFAULT 0,
+  tokens_total INTEGER NOT NULL DEFAULT 0,
+  model TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE usage_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own usage logs" ON usage_logs FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Atomic increment of monthly token usage
+CREATE OR REPLACE FUNCTION increment_tokens(
+  p_user_id UUID,
+  p_tokens INTEGER,
+  p_month TEXT
+) RETURNS void AS $$
+BEGIN
+  INSERT INTO usage_limits
+    (user_id, month_year, tokens_used_this_month, monthly_token_limit)
+  VALUES (p_user_id, p_month, p_tokens, 50000)
+  ON CONFLICT (user_id, month_year)
+  DO UPDATE SET
+    tokens_used_this_month =
+      usage_limits.tokens_used_this_month + p_tokens,
+    updated_at = NOW();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- Auto-create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
