@@ -12,7 +12,7 @@ const VALID_SORTS = [
   "note",
 ] as const;
 
-// GET /api/products?categorie=perruques&tri=prix-asc
+// GET /api/products?categorie=perruques&tri=prix-asc&q=majeste
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const categorie = searchParams.get("categorie") ?? undefined;
@@ -20,9 +20,14 @@ export async function GET(req: NextRequest) {
   const tri = (VALID_SORTS as readonly string[]).includes(triRaw ?? "")
     ? (triRaw as (typeof VALID_SORTS)[number])
     : undefined;
+  const query = searchParams.get("q")?.trim() || undefined;
 
   try {
-    const products = await listProducts({ categorySlug: categorie, sort: tri });
+    const products = await listProducts({
+      categorySlug: categorie,
+      sort: tri,
+      query,
+    });
     return NextResponse.json({ products, count: products.length });
   } catch (err) {
     console.error("[/api/products] error", err);

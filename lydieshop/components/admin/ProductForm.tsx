@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Upload, Loader2 } from "lucide-react";
+import { Sparkles, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import {
+  ImageDropzone,
+  type UploadedImage,
+} from "@/components/admin/ImageDropzone";
 
 type GeneratedContent = {
   description: string;
@@ -24,6 +28,7 @@ export function ProductForm() {
   const [stock, setStock] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedContent | null>(null);
+  const [images, setImages] = useState<UploadedImage[]>([]);
 
   const generate = async () => {
     setGenerating(true);
@@ -72,25 +77,19 @@ export function ProductForm() {
         <div className="card-luxe p-8">
           <h2 className="font-serif text-2xl">1. Photos du produit</h2>
           <p className="mt-2 text-sm text-ink-muted">
-            Ajoutez au moins 1 photo. L&apos;IA pourra analyser la première pour
-            suggérer la description.
+            Ajoutez au moins 1 photo. Les images sont stockées sur Cloudinary et
+            optimisées automatiquement.
           </p>
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <label
-                key={i}
-                className="flex aspect-[3/4] cursor-pointer flex-col items-center justify-center rounded-luxe border-2 border-dashed border-borderSoft bg-gradient-rose-soft transition-colors hover:border-rose-dark"
-              >
-                <Upload className="h-6 w-6 text-rose-dark" />
-                <span className="mt-2 text-xs font-ui font-semibold text-ink-muted">
-                  Image {i}
-                </span>
-                <input type="file" accept="image/*" className="hidden" />
-              </label>
-            ))}
+          <div className="mt-6">
+            <ImageDropzone value={images} onChange={setImages} />
           </div>
           <div className="mt-8 flex justify-end">
-            <Button onClick={() => setStep(2)}>Suivant →</Button>
+            <Button
+              onClick={() => setStep(2)}
+              disabled={images.length === 0}
+            >
+              Suivant →
+            </Button>
           </div>
         </div>
       )}

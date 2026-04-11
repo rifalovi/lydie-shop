@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Heart, Minus, Plus, ShoppingBag } from "lucide-react";
+import { Minus, Plus, ShoppingBag } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { useCart } from "@/lib/cart";
 import type { Product } from "@/lib/types";
+import { WishlistButton } from "@/components/shop/WishlistButton";
 
 export function AddToCart({ product }: { product: Product }) {
   const router = useRouter();
@@ -83,14 +84,7 @@ export function AddToCart({ product }: { product: Product }) {
           <ShoppingBag className="h-4 w-4" />
           Ajouter au panier
         </Button>
-        <Button
-          variant="secondary"
-          size="lg"
-          aria-label="Ajouter aux favoris"
-          className="!px-4"
-        >
-          <Heart className="h-5 w-5" />
-        </Button>
+        <WishlistButton productId={product.id} variant="pill" />
       </div>
 
       <button

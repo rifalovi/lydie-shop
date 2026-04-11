@@ -6,6 +6,7 @@ import { Filters } from "@/components/shop/Filters";
 type SearchParams = {
   categorie?: string;
   tri?: string;
+  q?: string;
 };
 
 const VALID_SORTS = [
@@ -27,9 +28,12 @@ export default async function BoutiquePage({
     ? (searchParams.tri as (typeof VALID_SORTS)[number])
     : undefined;
 
+  const query = searchParams.q?.trim();
+
   const products = await listProducts({
     categorySlug: searchParams.categorie,
     sort,
+    query,
   });
 
   const currentCategory = searchParams.categorie
@@ -53,7 +57,14 @@ export default async function BoutiquePage({
             )}
           </nav>
           <h1 className="font-serif text-4xl md:text-5xl">
-            {currentCategory ? (
+            {query ? (
+              <>
+                Résultats pour{" "}
+                <span className="font-script title-gold">
+                  « {query} »
+                </span>
+              </>
+            ) : currentCategory ? (
               <>
                 {currentCategory.name}{" "}
                 <span className="font-script title-gold">— notre sélection</span>
@@ -67,9 +78,11 @@ export default async function BoutiquePage({
             )}
           </h1>
           <p className="mt-3 max-w-2xl text-ink-muted">
-            {currentCategory
-              ? currentCategory.description
-              : "Explorez l'ensemble de nos perruques, tissages et accessoires — tous sélectionnés avec le même soin maniaque."}
+            {query
+              ? `Produits correspondant à votre recherche.`
+              : currentCategory
+                ? currentCategory.description
+                : "Explorez l'ensemble de nos perruques, tissages et accessoires — tous sélectionnés avec le même soin maniaque."}
           </p>
         </div>
       </div>

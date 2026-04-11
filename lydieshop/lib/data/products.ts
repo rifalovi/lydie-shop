@@ -66,12 +66,25 @@ function buildOrderBy(
 export async function listProducts(opts: {
   categorySlug?: string;
   sort?: Sort;
+  query?: string;
 } = {}): Promise<Product[]> {
+  const query = opts.query?.trim();
+
+  const searchFilter: Prisma.ProductWhereInput | undefined = query
+    ? {
+        OR: [
+          { name: { contains: query, mode: "insensitive" } },
+          { shortDesc: { contains: query, mode: "insensitive" } },
+          { description: { contains: query, mode: "insensitive" } },
+          { tags: { has: query.toLowerCase() } },
+        ],
+      }
+    : undefined;
+
   const where: Prisma.ProductWhereInput = {
     isActive: true,
-    ...(opts.categorySlug
-      ? { category: { slug: opts.categorySlug } }
-      : {}),
+    ...(opts.categorySlug ? { category: { slug: opts.categorySlug } } : {}),
+    ...(searchFilter ?? {}),
   };
 
   const rows = await prisma.product.findMany({
@@ -124,4 +137,34 @@ export async function getFeaturedProductsDb(limit = 8): Promise<Product[]> {
     orderBy: { createdAt: "desc" },
   });
   return rows.map(toUiProduct);
+}
+
+export type PublicReview = {
+  id: string;
+  rating: number;
+  title: string | null;
+  comment: string | null;
+  createdAt: string;
+  authorName: string;
+};
+
+export async function getApprovedReviewsForProduct(
+  productId: string,
+  limit = 20,
+): Promise<PublicReview[]> {
+  const rows = await prisma.review.findMany({
+    where: { productId, isApproved: true },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: { user: { select: { name: true } } },
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    title: r.title,
+    comment: r.comment,
+    createdAt: r.createdAt.toISOString(),
+    authorName: r.user.name?.split(" ")[0] ?? "Reine",
+  }));
 }

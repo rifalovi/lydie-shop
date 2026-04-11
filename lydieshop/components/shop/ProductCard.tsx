@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Heart } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { formatEUR } from "@/lib/format";
 import { Badge } from "@/components/ui/Badge";
 import { StarRating } from "@/components/ui/StarRating";
+import { WishlistButton } from "@/components/shop/WishlistButton";
 
 export function ProductCard({ product }: { product: Product }) {
   const hasSale = product.comparePrice && product.comparePrice > product.price;
@@ -31,16 +31,9 @@ export function ProductCard({ product }: { product: Product }) {
             )}
             {hasSale && <Badge variant="sale">-{savings}%</Badge>}
           </div>
-          <button
-            className="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-rose-dark shadow-soft transition-all hover:bg-white hover:scale-110"
-            aria-label="Ajouter aux favoris"
-            onClick={(e) => {
-              e.preventDefault();
-              // TODO: brancher sur /api/wishlist
-            }}
-          >
-            <Heart className="h-4 w-4" />
-          </button>
+          <div className="absolute right-3 top-3">
+            <WishlistButton productId={product.id} />
+          </div>
         </div>
       </Link>
 

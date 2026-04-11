@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Heart, Menu, Search, ShoppingBag, User, X } from "lucide-react";
+import { Suspense, useState } from "react";
+import { Heart, Menu, ShoppingBag, User, X } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { CrownIcon } from "@/components/ui/Crown";
+import { SearchBar } from "@/components/shop/SearchBar";
 
 const navLinks = [
   { href: "/boutique", label: "Boutique" },
@@ -53,12 +54,15 @@ export default function Header() {
 
         {/* Actions */}
         <div className="flex items-center gap-3">
-          <button
-            className="hidden rounded-full p-2 text-ink transition-colors hover:bg-rose-light md:block"
-            aria-label="Rechercher"
-          >
-            <Search className="h-5 w-5" />
-          </button>
+          <div className="hidden md:block">
+            <Suspense
+              fallback={
+                <div className="h-10 w-[260px] rounded-full border border-borderSoft bg-white" />
+              }
+            >
+              <SearchBar />
+            </Suspense>
+          </div>
           <Link
             href="/compte"
             className="hidden rounded-full p-2 text-ink transition-colors hover:bg-rose-light md:block"
@@ -99,7 +103,14 @@ export default function Header() {
       {/* Mobile menu */}
       {open && (
         <nav className="border-t border-borderSoft bg-cream lg:hidden">
-          <div className="container-page flex flex-col gap-1 py-4">
+          <div className="container-page flex flex-col gap-3 py-4">
+            <Suspense
+              fallback={
+                <div className="h-11 w-full rounded-full border border-borderSoft bg-white" />
+              }
+            >
+              <SearchBar variant="mobile" onSubmitted={() => setOpen(false)} />
+            </Suspense>
             {navLinks.map((link) => (
               <Link
                 key={link.href}

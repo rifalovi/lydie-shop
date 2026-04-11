@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { sendOrderConfirmationEmail } from "@/lib/email";
+import { computePointsForOrder, computeTier } from "@/lib/loyalty";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -98,12 +99,30 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       },
     });
 
-    // Décrément du stock par produit (les variantes resteront pour Phase 2).
+    // Décrément du stock par produit.
     for (const item of order.items) {
       await tx.product.update({
         where: { id: item.productId },
         data: { stock: { decrement: item.quantity } },
       });
+    }
+
+    // Attribution des points Couronne — uniquement pour les comptes
+    // enregistrés (les guests ne cumulent pas).
+    if (order.userId) {
+      const earned = computePointsForOrder(Number(order.subtotal));
+      if (earned > 0) {
+        const user = await tx.user.update({
+          where: { id: order.userId },
+          data: { loyaltyPoints: { increment: earned } },
+          select: { loyaltyPoints: true },
+        });
+        const newTier = computeTier(user.loyaltyPoints);
+        await tx.user.update({
+          where: { id: order.userId },
+          data: { tier: newTier },
+        });
+      }
     }
   });
 

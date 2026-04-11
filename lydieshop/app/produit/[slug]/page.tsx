@@ -1,13 +1,19 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Truck, RefreshCcw, ShieldCheck, Share2 } from "lucide-react";
-import { getProductBySlug, getRelatedProducts } from "@/lib/data/products";
+import {
+  getProductBySlug,
+  getRelatedProducts,
+  getApprovedReviewsForProduct,
+} from "@/lib/data/products";
 import { formatEUR } from "@/lib/format";
 import { Badge } from "@/components/ui/Badge";
 import { StarRating } from "@/components/ui/StarRating";
 import { ProductGallery } from "@/components/shop/ProductGallery";
 import { AddToCart } from "@/components/shop/AddToCart";
 import { ProductCard } from "@/components/shop/ProductCard";
+import { ReviewList } from "@/components/shop/ReviewList";
+import { ReviewForm } from "@/components/shop/ReviewForm";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +25,10 @@ export default async function ProductPage({
   const product = await getProductBySlug(params.slug);
   if (!product) notFound();
 
-  const related = await getRelatedProducts(product.id);
+  const [related, reviews] = await Promise.all([
+    getRelatedProducts(product.id),
+    getApprovedReviewsForProduct(product.id),
+  ]);
   const hasSale = product.comparePrice && product.comparePrice > product.price;
 
   return (
@@ -151,6 +160,33 @@ export default async function ProductPage({
           </ul>
         </div>
       </div>
+
+      {/* Avis clients */}
+      <section className="container-page py-12">
+        <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
+          <div>
+            <div className="flex items-center justify-between">
+              <h2 className="font-serif text-2xl">
+                Avis des{" "}
+                <span className="font-script title-gold">Reines</span>
+              </h2>
+              {product.reviewCount > 0 && (
+                <StarRating
+                  value={product.rating}
+                  showValue
+                  reviewCount={product.reviewCount}
+                />
+              )}
+            </div>
+            <div className="mt-5">
+              <ReviewList reviews={reviews} />
+            </div>
+          </div>
+          <div>
+            <ReviewForm productId={product.id} />
+          </div>
+        </div>
+      </section>
 
       {related.length > 0 && (
         <section className="bg-white py-16">
