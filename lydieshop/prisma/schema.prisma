@@ -1,0 +1,237 @@
+// Lydie'shop — Schéma Prisma
+// La boutique qui sublime les Reines
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- UTILISATEURS ----------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  phone        String?
+  passwordHash String
+  role         Role     @default(CUSTOMER)
+  loyaltyPoints Int     @default(0)
+  tier         Tier     @default(ROSE)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  addresses    Address[]
+  orders       Order[]
+  wishlist     WishlistItem[]
+  reviews      Review[]
+  chatSessions ChatSession[]
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum Tier {
+  ROSE
+  GOLD
+  DIAMOND
+}
+
+model Address {
+  id         String  @id @default(cuid())
+  userId     String
+  firstName  String
+  lastName   String
+  street     String
+  city       String
+  postalCode String
+  country    String  @default("FR")
+  phone      String?
+  isDefault  Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------- PRODUITS ----------
+
+model Product {
+  id           String  @id @default(cuid())
+  slug         String  @unique
+  name         String
+  description  String  @db.Text
+  shortDesc    String
+  price        Decimal
+  comparePrice Decimal?
+  stock        Int      @default(0)
+  categoryId   String
+  tags         String[]
+  isFeatured   Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  weight       Float?
+  seoTitle     String?
+  seoDesc      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  category      Category        @relation(fields: [categoryId], references: [id])
+  images        ProductImage[]
+  variants      ProductVariant[]
+  orderItems    OrderItem[]
+  wishlistItems WishlistItem[]
+  reviews       Review[]
+}
+
+model ProductVariant {
+  id        String   @id @default(cuid())
+  productId String
+  name      String
+  color     String?
+  length    String?
+  stock     Int      @default(0)
+  price     Decimal?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  url       String
+  alt       String?
+  position  Int     @default(0)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  name     String
+  image    String?
+  products Product[]
+}
+
+// ---------- COMMANDES ----------
+
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique
+  userId          String?
+  guestEmail      String?
+  status          OrderStatus   @default(PENDING)
+  subtotal        Decimal
+  shippingCost    Decimal
+  discount        Decimal       @default(0)
+  total           Decimal
+  promoCodeId     String?
+  shippingAddress Json
+  paymentIntent   String?
+  paymentStatus   PaymentStatus @default(PENDING)
+  trackingNumber  String?
+  carrier         String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user      User?       @relation(fields: [userId], references: [id])
+  items     OrderItem[]
+  promoCode PromoCode?  @relation(fields: [promoCodeId], references: [id])
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  variantId String?
+  quantity  Int
+  price     Decimal
+  name      String
+  image     String?
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+// ---------- FIDÉLITÉ ----------
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+model PromoCode {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  type      PromoType
+  value     Decimal
+  minOrder  Decimal?
+  maxUses   Int?
+  usedCount Int       @default(0)
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+
+  orders Order[]
+}
+
+enum PromoType {
+  PERCENT
+  FIXED
+  FREE_SHIPPING
+}
+
+// ---------- AVIS ----------
+
+model Review {
+  id         String   @id @default(cuid())
+  productId  String
+  userId     String
+  rating     Int
+  title      String?
+  comment    String?
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------- CHATBOT ----------
+
+model ChatSession {
+  id        String   @id @default(cuid())
+  userId    String?
+  messages  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id])
+}

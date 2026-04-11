@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-rose: #f8c8d4;
+  --color-rose-light: #fde8ee;
+  --color-rose-dark: #e8a0b4;
+  --color-gold: #c9a84c;
+  --color-gold-light: #e8d08a;
+  --color-gold-dark: #9a7a2e;
+  --color-cream: #fff9f5;
+  --color-white: #ffffff;
+  --color-text: #3d2b35;
+  --color-text-muted: #8a6b76;
+  --color-border: #f0d0dc;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-cream text-ink font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-serif text-ink;
+    letter-spacing: -0.01em;
+  }
+
+  .font-script {
+    font-family: "Great Vibes", cursive;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .title-gold {
+    @apply bg-gradient-gold bg-clip-text text-transparent;
+  }
+
+  .title-royal {
+    @apply bg-gradient-royal bg-clip-text text-transparent;
+  }
+
+  .card-luxe {
+    @apply rounded-luxe bg-white shadow-soft border border-borderSoft transition-all hover:shadow-lift;
+  }
+
+  .btn-base {
+    @apply inline-flex items-center justify-center gap-2 rounded-full font-ui font-semibold tracking-wide transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-rose-dark focus:ring-offset-2 focus:ring-offset-cream disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn-base bg-gradient-royal text-white shadow-gold hover:shadow-lift hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .btn-secondary {
+    @apply btn-base border-2 border-rose-dark text-rose-dark hover:bg-rose-light;
+  }
+
+  .btn-ghost {
+    @apply btn-base text-ink hover:bg-rose-light;
+  }
+
+  .input-luxe {
+    @apply w-full rounded-soft border border-borderSoft bg-white px-4 py-3 text-ink placeholder:text-ink-muted focus:border-rose-dark focus:outline-none focus:ring-2 focus:ring-rose-light transition-all;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-ui font-semibold;
+  }
+
+  .badge-new {
+    @apply badge bg-gradient-royal text-white;
+  }
+
+  .badge-sale {
+    @apply badge bg-rose-light text-rose-dark border border-rose-dark;
+  }
+
+  .badge-bestseller {
+    @apply badge bg-gradient-gold text-white;
+  }
+
+  .sparkle-bg {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .sparkle-bg::before,
+  .sparkle-bg::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: radial-gradient(
+      circle,
+      rgba(232, 208, 138, 0.9) 0%,
+      transparent 70%
+    );
+    border-radius: 50%;
+    pointer-events: none;
+    animation: sparkle 2.4s ease-in-out infinite;
+  }
+
+  .sparkle-bg::before {
+    top: 12%;
+    left: 8%;
+  }
+
+  .sparkle-bg::after {
+    bottom: 16%;
+    right: 10%;
+    animation-delay: 1.2s;
+  }
+}
+
+/* Scrollbar délicate */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-cream);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-rose-dark);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold-dark);
+}
