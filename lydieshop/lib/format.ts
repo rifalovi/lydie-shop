@@ -20,5 +20,12 @@ export const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-export const cx = (...classes: (string | false | null | undefined)[]) =>
-  classes.filter(Boolean).join(" ");
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+// Fusion intelligente des classes Tailwind : clsx pour la composition +
+// tailwind-merge pour déduper les conflits (ex: "px-4 px-6" → "px-6").
+export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
+
+// Alias historique conservé pour compatibilité avec les imports existants.
+export const cx = cn;
