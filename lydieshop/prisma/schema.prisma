@@ -6,8 +6,16 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Connexion runtime : sur Supabase, pointe sur le Supavisor transaction
+  // pooler (port 6543) avec `?pgbouncer=true&connection_limit=1`. Sur Vercel
+  // serverless, ça évite d'épuiser le quota de connexions directes.
+  url       = env("DATABASE_URL")
+  // Connexion directe, utilisée UNIQUEMENT par `prisma migrate` / `db push`
+  // (opérations schéma incompatibles avec le pooler transaction mode). Sur
+  // Supabase, c'est le port 5432. Optionnelle au runtime : si absente, seul
+  // `prisma migrate` plantera, pas le serveur.
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------- UTILISATEURS ----------
