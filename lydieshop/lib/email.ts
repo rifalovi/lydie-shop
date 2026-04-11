@@ -89,6 +89,39 @@ export type OrderEmailItem = {
   price: number;
 };
 
+export async function sendPasswordResetEmail(args: {
+  to: string;
+  customerName?: string | null;
+  resetUrl: string;
+}) {
+  const firstName = args.customerName?.split(" ")[0] ?? "Reine";
+
+  const html = baseLayout(
+    "Réinitialisation",
+    `
+    <p>Bonjour <strong>${firstName}</strong>,</p>
+    <p>Vous avez demandé à réinitialiser votre mot de passe sur Lydie'shop.</p>
+    <p>Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe. Ce lien est valable <strong>1 heure</strong> et ne peut être utilisé qu'une seule fois.</p>
+    <p style="text-align:center;margin:32px 0;">
+      <a href="${args.resetUrl}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#F8C8D4 0%,#C9A84C 100%);color:#ffffff;text-decoration:none;border-radius:999px;font-weight:bold;">
+        Réinitialiser mon mot de passe →
+      </a>
+    </p>
+    <p style="color:#7A6770;font-size:13px;">Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br/>
+      <span style="word-break:break-all;color:#9A7A2E;">${args.resetUrl}</span>
+    </p>
+    <p style="margin-top:24px;color:#7A6770;font-size:13px;">Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email en toute sécurité — votre mot de passe ne sera pas modifié.</p>
+    <p style="margin-top:24px;">L'équipe Lydie'shop</p>
+    `,
+  );
+
+  await safeSend({
+    to: args.to,
+    subject: "🔐 Réinitialiser votre mot de passe — Lydie'shop",
+    html,
+  });
+}
+
 export async function sendReviewApprovedEmail(args: {
   to: string;
   customerName: string | null;

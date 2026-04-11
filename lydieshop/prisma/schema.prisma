@@ -24,11 +24,12 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  addresses    Address[]
-  orders       Order[]
-  wishlist     WishlistItem[]
-  reviews      Review[]
-  chatSessions ChatSession[]
+  addresses           Address[]
+  orders              Order[]
+  wishlist            WishlistItem[]
+  reviews             Review[]
+  chatSessions        ChatSession[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 enum Role {
@@ -229,6 +230,21 @@ model Review {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
+}
+
+// ---------- RÉINITIALISATION MOT DE PASSE ----------
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ---------- CHATBOT ----------

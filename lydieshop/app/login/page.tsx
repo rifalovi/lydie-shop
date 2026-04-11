@@ -76,7 +76,7 @@ function LoginForm() {
           moi
         </label>
         <Link
-          href="/reset"
+          href="/auth/forgot-password"
           className="font-ui font-semibold text-rose-dark hover:underline"
         >
           Mot de passe oublié ?

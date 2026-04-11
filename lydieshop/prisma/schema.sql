@@ -11,6 +11,10 @@
 -- À exécuter sur une base vide. Si tu relances sur une base non vide,
 -- les `CREATE TYPE` et `CREATE TABLE` échoueront (erreurs "already exists"),
 -- ce qui est attendu et protège contre une ré-exécution accidentelle.
+--
+-- Pour une DB déjà initialisée à la Phase 3 et qui doit juste récupérer la
+-- table PasswordResetToken (introduite avec la fonctionnalité "mot de passe
+-- oublié"), voir le bloc de migration incrémentale en bas de ce fichier.
 -- ============================================================================
 
 -- CreateEnum
@@ -200,6 +204,18 @@ CREATE TABLE "Review" (
 );
 
 -- CreateTable
+CREATE TABLE "PasswordResetToken" (
+    "id" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PasswordResetToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "ChatSession" (
     "id" TEXT NOT NULL,
     "userId" TEXT,
@@ -230,6 +246,12 @@ CREATE UNIQUE INDEX "PromoCode_code_key" ON "PromoCode"("code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Review_userId_productId_key" ON "Review"("userId", "productId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PasswordResetToken_tokenHash_key" ON "PasswordResetToken"("tokenHash");
+
+-- CreateIndex
+CREATE INDEX "PasswordResetToken_userId_idx" ON "PasswordResetToken"("userId");
 
 -- AddForeignKey
 ALTER TABLE "Address" ADD CONSTRAINT "Address_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -268,4 +290,30 @@ ALTER TABLE "Review" ADD CONSTRAINT "Review_productId_fkey" FOREIGN KEY ("produc
 ALTER TABLE "Review" ADD CONSTRAINT "Review_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "ChatSession" ADD CONSTRAINT "ChatSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- ============================================================================
+-- MIGRATION INCRÉMENTALE (Phase 4 : fonctionnalité "mot de passe oublié")
+-- ============================================================================
+-- Si ta base a déjà été initialisée avec la version Phase 3 de ce fichier,
+-- ne relance PAS l'intégralité du schéma ci-dessus (les CREATE échoueraient).
+-- Exécute plutôt juste ce bloc dans Supabase SQL Editor pour ajouter la
+-- table PasswordResetToken :
+--
+-- CREATE TABLE "PasswordResetToken" (
+--     "id" TEXT NOT NULL,
+--     "tokenHash" TEXT NOT NULL,
+--     "userId" TEXT NOT NULL,
+--     "expiresAt" TIMESTAMP(3) NOT NULL,
+--     "usedAt" TIMESTAMP(3),
+--     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+--     CONSTRAINT "PasswordResetToken_pkey" PRIMARY KEY ("id")
+-- );
+-- CREATE UNIQUE INDEX "PasswordResetToken_tokenHash_key" ON "PasswordResetToken"("tokenHash");
+-- CREATE INDEX "PasswordResetToken_userId_idx" ON "PasswordResetToken"("userId");
+-- ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey"
+--     FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- ============================================================================
