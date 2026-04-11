@@ -29,8 +29,20 @@ export async function middleware(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession();
 
   // Redirect unauthenticated users away from protected routes
-  const protectedPaths = ["/dashboard", "/modules", "/projets", "/chat"];
-  const isProtected = protectedPaths.some((path) => request.nextUrl.pathname.startsWith(path));
+  const protectedPaths = [
+    "/dashboard",
+    "/modules",
+    "/projets",
+    "/chat",
+    "/admin",
+  ];
+  const pathname = request.nextUrl.pathname;
+  const isAuthenticatedAnalyticalNote =
+    pathname.startsWith("/analyse-documentaire/") &&
+    !pathname.startsWith("/analyse-documentaire/public/");
+  const isProtected =
+    protectedPaths.some((path) => pathname.startsWith(path)) ||
+    isAuthenticatedAnalyticalNote;
 
   if (isProtected && !session) {
     return NextResponse.redirect(new URL("/login", request.url));
@@ -45,5 +57,14 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/modules/:path*", "/projets/:path*", "/chat/:path*", "/login", "/signup"],
+  matcher: [
+    "/dashboard/:path*",
+    "/modules/:path*",
+    "/projets/:path*",
+    "/chat/:path*",
+    "/admin/:path*",
+    "/analyse-documentaire/((?!public/).*)",
+    "/login",
+    "/signup",
+  ],
 };

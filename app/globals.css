@@ -8,6 +8,77 @@
   }
 }
 
+/* ---------- Print styles (PDF export) ---------- */
+@media print {
+  @page {
+    size: A4;
+    margin: 2cm;
+    /* Per-page OIF header and confidential footer */
+    @top-center {
+      content: "Organisation Internationale de la Francophonie — Assistant SCS";
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      font-size: 9pt;
+      color: #6b7280;
+    }
+    @bottom-center {
+      content: "Assistant SCS — OIF Confidentiel — Page " counter(page) " / " counter(pages);
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      font-size: 9pt;
+      color: #6b7280;
+    }
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt;
+    line-height: 1.45;
+  }
+
+  /* Hide global navigation, sidebars, floating buttons, toolbars */
+  aside,
+  nav,
+  header.lg\:hidden,
+  .print\:hidden,
+  button,
+  [role="dialog"] {
+    display: none !important;
+  }
+
+  main,
+  .print-area {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    background: white !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .markdown-body h1 {
+    font-size: 18pt;
+    color: #003F87;
+  }
+  .markdown-body h2 {
+    font-size: 14pt;
+    color: #003F87;
+    margin-top: 14pt;
+  }
+  .markdown-body h3 {
+    font-size: 12pt;
+    margin-top: 10pt;
+  }
+
+  article.print-area {
+    page-break-inside: auto;
+  }
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+}
+
 @layer components {
   .btn-primary {
     @apply bg-oif-blue text-white px-6 py-2.5 rounded-lg font-medium
