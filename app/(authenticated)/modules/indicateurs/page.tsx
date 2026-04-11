@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { BarChart3, CheckCircle, XCircle } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import type { Indicator } from "@/lib/types";
+import IndicatorSheetModal from "@/components/indicators/IndicatorSheetModal";
 
 export default function IndicateursPage() {
   const supabase = createClient();
   const [indicators, setIndicators] = useState<Indicator[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Indicator | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -24,6 +26,7 @@ export default function IndicateursPage() {
       setLoading(false);
     }
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {
@@ -37,7 +40,7 @@ export default function IndicateursPage() {
           <BarChart3 className="w-6 h-6" /> Indicateurs SMART
         </h1>
         <p className="text-oif-gray-500 mt-1">
-          Vue d&apos;ensemble de tous vos indicateurs à travers vos projets.
+          Cliquez sur un indicateur pour consulter sa fiche complète.
         </p>
       </div>
 
@@ -54,7 +57,11 @@ export default function IndicateursPage() {
             const pct = smartScore ? Math.round((passed / 5) * 100) : null;
 
             return (
-              <div key={ind.id} className="card flex items-start gap-4">
+              <button
+                key={ind.id}
+                onClick={() => setSelected(ind)}
+                className="card flex items-start gap-4 w-full text-left hover:shadow-md transition-shadow"
+              >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     {ind.code && <span className="text-xs font-mono bg-oif-blue-50 text-oif-blue px-2 py-0.5 rounded">{ind.code}</span>}
@@ -72,10 +79,14 @@ export default function IndicateursPage() {
                     SMART {pct}%
                   </div>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
+      )}
+
+      {selected && (
+        <IndicatorSheetModal indicator={selected} onClose={() => setSelected(null)} />
       )}
     </div>
   );

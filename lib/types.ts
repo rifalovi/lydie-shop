@@ -121,6 +121,66 @@ export const RESULT_LEVELS = [
   { value: "impact", label: "Impacts", color: "#DC2626" },
 ] as const;
 
+export interface KnowledgeDocument {
+  id: string;
+  uploaded_by: string | null;
+  title: string;
+  filename: string | null;
+  content: string | null;
+  page_count: number | null;
+  char_count: number | null;
+  created_at: string;
+}
+
+export type QuestionType =
+  | "oui_non"
+  | "echelle_1_5"
+  | "texte_libre"
+  | "choix_multiple"
+  | "nombre";
+
+export interface QuestionnaireQuestion {
+  id: string;
+  text: string;
+  type: QuestionType;
+  indicator_id?: string | null;
+  indicator_code?: string | null;
+  options?: string[];
+  required?: boolean;
+}
+
+export interface Questionnaire {
+  id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  status: "draft" | "active" | "archived";
+  questions: QuestionnaireQuestion[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CmrPeriod {
+  key: string; // e.g. "2024-T1"
+  label: string;
+  start: string | null;
+  end: string | null;
+}
+
+export interface CmrIndicatorTargets {
+  baseline: number | null;
+  periods: Record<string, number | null>;
+}
+
+export interface CmrConfig {
+  id: string;
+  project_id: string;
+  periods: CmrPeriod[];
+  targets: Record<string, CmrIndicatorTargets>;
+  created_at: string;
+  updated_at: string;
+}
+
 export const PROGRAMMES_STRATEGIQUES = [
   { value: "PS1", label: "PS1 — Langue française, diversité culturelle et linguistique" },
   { value: "PS2", label: "PS2 — Paix, démocratie, droits de l'Homme" },

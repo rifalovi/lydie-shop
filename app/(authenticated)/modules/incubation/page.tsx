@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import StepperIncubation from "@/components/incubation/StepperIncubation";
@@ -15,6 +15,20 @@ import type { Project } from "@/lib/types";
 import { Rocket, Plus } from "lucide-react";
 
 export default function IncubationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 flex items-center justify-center h-full">
+          <div className="animate-pulse text-oif-gray-400">Chargement...</div>
+        </div>
+      }
+    >
+      <IncubationPageInner />
+    </Suspense>
+  );
+}
+
+function IncubationPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const supabase = createClient();

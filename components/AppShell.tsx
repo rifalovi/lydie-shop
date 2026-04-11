@@ -13,6 +13,8 @@ import {
   LogOut,
   Menu,
   X,
+  Target,
+  Shield,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -21,8 +23,10 @@ const navItems = [
   { href: "/modules/formation", label: "Formation GAR/S&E", icon: BookOpen },
   { href: "/modules/incubation", label: "Incubation de projet", icon: Rocket },
   { href: "/modules/indicateurs", label: "Indicateurs SMART", icon: BarChart3 },
+  { href: "/modules/cmr", label: "Cadre de mesure (CMR)", icon: Target },
   { href: "/modules/analyse-era", label: "Analyse ERA", icon: FileSearch },
   { href: "/chat", label: "Chat Assistant", icon: MessageCircle },
+  { href: "/admin", label: "Administration", icon: Shield },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {

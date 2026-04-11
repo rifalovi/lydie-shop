@@ -147,6 +147,56 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can CRUD own messages" ON chat_messages FOR ALL USING (auth.uid() = user_id);
 
+-- Knowledge documents (admin-managed)
+CREATE TABLE IF NOT EXISTS knowledge_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  uploaded_by UUID REFERENCES profiles(id),
+  title TEXT NOT NULL,
+  filename TEXT,
+  content TEXT,
+  page_count INTEGER,
+  char_count INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE knowledge_documents ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated users can view knowledge documents" ON knowledge_documents FOR SELECT
+  USING (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can insert knowledge documents" ON knowledge_documents FOR INSERT
+  WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can delete knowledge documents" ON knowledge_documents FOR DELETE
+  USING (auth.role() = 'authenticated');
+
+-- Questionnaires
+CREATE TABLE IF NOT EXISTS questionnaires (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'draft', -- draft, active, archived
+  questions JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE questionnaires ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can CRUD questionnaires via project" ON questionnaires FOR ALL
+  USING (EXISTS (SELECT 1 FROM projects WHERE projects.id = questionnaires.project_id AND projects.user_id = auth.uid()));
+
+-- CMR (Cadre de Mesure du Rendement) configuration
+CREATE TABLE IF NOT EXISTS cmr_configs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE UNIQUE,
+  periods JSONB DEFAULT '[]'::jsonb, -- [{ label, start, end }]
+  targets JSONB DEFAULT '{}'::jsonb, -- { indicator_id: { baseline, periods: { period_key: value } } }
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE cmr_configs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can CRUD CMR via project" ON cmr_configs FOR ALL
+  USING (EXISTS (SELECT 1 FROM projects WHERE projects.id = cmr_configs.project_id AND projects.user_id = auth.uid()));
+
 -- Auto-create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
