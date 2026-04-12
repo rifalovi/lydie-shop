@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#F8C8D4"/>
+  <g transform="translate(256,256)">
+    <!-- Crown body -->
+    <path d="M-128 64 L-86-64 -42 0 0-86 42 0 86-64 128 64Z" fill="#C9A84C" stroke="#9A7A2E" stroke-width="6" stroke-linejoin="round"/>
+    <!-- Crown base -->
+    <rect x="-128" y="64" width="256" height="32" rx="8" fill="#C9A84C" stroke="#9A7A2E" stroke-width="4"/>
+    <!-- Jewels -->
+    <circle cx="-86" cy="-64" r="16" fill="#E8D08A" stroke="#9A7A2E" stroke-width="3"/>
+    <circle cx="0" cy="-86" r="18" fill="#E8D08A" stroke="#9A7A2E" stroke-width="3"/>
+    <circle cx="86" cy="-64" r="16" fill="#E8D08A" stroke="#9A7A2E" stroke-width="3"/>
+    <!-- Center diamond -->
+    <path d="M0 20 L16 44 0 64 -16 44Z" fill="#E8D08A" stroke="#9A7A2E" stroke-width="2"/>
+    <!-- Base gems -->
+    <circle cx="-64" cy="80" r="8" fill="#E8D08A"/>
+    <circle cx="0" cy="80" r="8" fill="#E8D08A"/>
+    <circle cx="64" cy="80" r="8" fill="#E8D08A"/>
+  </g>
+  <!-- Text -->
+  <text x="256" y="430" text-anchor="middle" font-family="Georgia,serif" font-size="48" fill="#9A7A2E" font-weight="bold">Lydie'shop</text>
+</svg>

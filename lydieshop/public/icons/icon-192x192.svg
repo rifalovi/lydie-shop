@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="32" fill="#F8C8D4"/>
+  <g transform="translate(96,96)">
+    <!-- Crown body -->
+    <path d="M-48 24 L-32-24 -16 0 0-32 16 0 32-24 48 24Z" fill="#C9A84C" stroke="#9A7A2E" stroke-width="3" stroke-linejoin="round"/>
+    <!-- Crown base -->
+    <rect x="-48" y="24" width="96" height="12" rx="3" fill="#C9A84C" stroke="#9A7A2E" stroke-width="2"/>
+    <!-- Jewels -->
+    <circle cx="-32" cy="-24" r="6" fill="#E8D08A" stroke="#9A7A2E" stroke-width="1.5"/>
+    <circle cx="0" cy="-32" r="7" fill="#E8D08A" stroke="#9A7A2E" stroke-width="1.5"/>
+    <circle cx="32" cy="-24" r="6" fill="#E8D08A" stroke="#9A7A2E" stroke-width="1.5"/>
+    <!-- Center diamond -->
+    <path d="M0 8 L6 16 0 24 -6 16Z" fill="#E8D08A" stroke="#9A7A2E" stroke-width="1"/>
+  </g>
+</svg>

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ShopChrome } from "@/components/shop/ShopChrome";
 import { SessionProvider } from "@/components/providers/SessionProvider";
@@ -18,6 +18,12 @@ export const metadata: Metadata = {
     "beauté afro",
     "lydieshop",
   ],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Lydie'shop",
+  },
   openGraph: {
     title: "Lydie'shop — La boutique qui sublime les Reines",
     description:
@@ -28,8 +34,16 @@ export const metadata: Metadata = {
     type: "website",
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: "/icons/icon-192x192.svg",
+    apple: "/icons/icon-192x192.svg",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#F8C8D4",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
