@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { Suspense, useState } from "react";
-import { Heart, Menu, ShoppingBag, User, X } from "lucide-react";
+import { Heart, Menu, Settings, ShoppingBag, User, X } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useCart } from "@/lib/cart";
 import { CrownIcon } from "@/components/ui/Crown";
 import { SearchBar } from "@/components/shop/SearchBar";
+import { isStaffRole } from "@/lib/roles";
 
 const navLinks = [
   { href: "/boutique", label: "Boutique" },
@@ -18,6 +20,8 @@ const navLinks = [
 export default function Header() {
   const [open, setOpen] = useState(false);
   const count = useCart((s) => s.count());
+  const { data: session } = useSession();
+  const showAdmin = isStaffRole(session?.user?.role);
 
   return (
     <header className="sticky top-0 z-40 border-b border-borderSoft/80 bg-cream/90 backdrop-blur">
@@ -63,6 +67,15 @@ export default function Header() {
               <SearchBar />
             </Suspense>
           </div>
+          {showAdmin && (
+            <Link
+              href="/admin"
+              className="hidden items-center gap-1.5 rounded-full bg-gradient-royal px-3 py-1.5 text-xs font-ui font-bold text-white shadow-soft transition-all hover:opacity-90 md:inline-flex"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              Admin
+            </Link>
+          )}
           <Link
             href="/compte"
             className="hidden rounded-full p-2 text-ink transition-colors hover:bg-rose-light md:block"
@@ -122,6 +135,16 @@ export default function Header() {
               </Link>
             ))}
             <div className="my-2 h-px bg-borderSoft" />
+            {showAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 rounded-soft bg-gradient-royal px-4 py-3 text-sm font-ui font-semibold text-white"
+              >
+                <Settings className="h-4 w-4" />
+                Administration
+              </Link>
+            )}
             <Link
               href="/compte"
               onClick={() => setOpen(false)}

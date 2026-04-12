@@ -18,7 +18,7 @@
 -- ============================================================================
 
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('CUSTOMER', 'ADMIN');
+CREATE TYPE "Role" AS ENUM ('CUSTOMER', 'ADMIN', 'SUPER_ADMIN');
 
 -- CreateEnum
 CREATE TYPE "Tier" AS ENUM ('ROSE', 'GOLD', 'DIAMOND');

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { cloudinary, CLOUDINARY_FOLDER } from "@/lib/cloudinary";
+import { isStaffRole } from "@/lib/roles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ type CloudinaryUploadResult = {
 export async function POST(req: NextRequest) {
   // Uploads réservés aux admins — évite l'abus anonyme.
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") {
+  if (!isStaffRole(session?.user?.role)) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 

@@ -32,7 +32,7 @@ VALUES (
   'admin@lydieshop.com',
   'Lydie Admin',
   '$2a$10$02jEyB97YsiGVhwjJwoYye/bZO5f9fhOhMCi9TbyqFidbAZejM5hS',
-  'ADMIN',
+  'SUPER_ADMIN',
   0,
   'ROSE',
   NOW(),

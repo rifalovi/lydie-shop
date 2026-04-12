@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { listProducts } from "@/lib/data/products";
 import { slugify } from "@/lib/format";
+import { isStaffRole } from "@/lib/roles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -83,7 +84,7 @@ async function uniqueSlug(base: string): Promise<string> {
 // POST /api/products — création d'un produit (admin uniquement).
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") {
+  if (!isStaffRole(session?.user?.role)) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 

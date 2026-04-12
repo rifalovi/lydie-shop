@@ -20,7 +20,7 @@ async function main() {
       email: "admin@lydieshop.com",
       name: "Lydie Admin",
       passwordHash: adminPassword,
-      role: "ADMIN",
+      role: "SUPER_ADMIN",
     },
   });
   console.log("👑 Admin créé : admin@lydieshop.com / Reine2026!");

@@ -2,31 +2,45 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   BarChart3,
   Box,
   Home,
   Package,
+  Shield,
   ShoppingBag,
+  Star,
   Tag,
   Users,
-  Star,
 } from "lucide-react";
 import { CrownIcon } from "@/components/ui/Crown";
 import { cx } from "@/lib/format";
+import { isSuperAdmin } from "@/lib/roles";
 
-const items = [
+const commonItems = [
   { href: "/admin", label: "Tableau de bord", icon: Home },
   { href: "/admin/produits", label: "Produits", icon: Box },
   { href: "/admin/commandes", label: "Commandes", icon: Package },
-  { href: "/admin/clients", label: "Clientes", icon: Users },
+  { href: "/admin/clientes", label: "Clientes", icon: Users },
   { href: "/admin/promotions", label: "Promotions", icon: Tag },
   { href: "/admin/avis", label: "Avis", icon: Star },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
+const superAdminItems = [
+  { href: "/admin/admins", label: "Gestion des admins", icon: Shield },
+];
+
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const showSuperAdmin = isSuperAdmin(session?.user?.role);
+
+  const items = showSuperAdmin
+    ? [...commonItems, ...superAdminItems]
+    : commonItems;
+
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-borderSoft bg-white">
       <div className="border-b border-borderSoft p-6">
@@ -37,7 +51,7 @@ export function AdminSidebar() {
           </span>
         </Link>
         <p className="mt-1 text-[10px] font-ui font-bold uppercase tracking-widest text-ink-muted">
-          Back-office admin
+          {showSuperAdmin ? "Super Admin" : "Back-office admin"}
         </p>
       </div>
 

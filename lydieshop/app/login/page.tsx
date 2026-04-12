@@ -7,11 +7,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { CrownIcon } from "@/components/ui/Crown";
+import { defaultLandingFor } from "@/lib/roles";
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const callbackUrl = params.get("callbackUrl") ?? "/compte";
+  // `callbackUrl` n'est présent que si l'utilisatrice a été renvoyée vers le
+  // login par le middleware depuis une page protégée. Dans ce cas on respecte
+  // sa destination d'origine. Sinon on route selon le rôle.
+  const explicitCallback = params.get("callbackUrl");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,13 +33,32 @@ function LoginForm() {
       redirect: false,
     });
 
-    setLoading(false);
-
     if (!res || res.error) {
+      setLoading(false);
       setError("Email ou mot de passe incorrect.");
       return;
     }
-    router.push(callbackUrl);
+
+    // Destination : si le middleware nous a envoyé un callbackUrl, on le
+    // respecte. Sinon on fetch la session pour lire le rôle frais et router
+    // automatiquement un staff vers /admin.
+    let target = explicitCallback;
+    if (!target) {
+      try {
+        const sessionRes = await fetch("/api/auth/session", {
+          cache: "no-store",
+        });
+        const session = (await sessionRes.json()) as {
+          user?: { role?: string };
+        };
+        target = defaultLandingFor(session?.user?.role);
+      } catch {
+        target = "/compte";
+      }
+    }
+
+    setLoading(false);
+    router.push(target);
     router.refresh();
   };
 

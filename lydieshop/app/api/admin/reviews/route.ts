@@ -5,13 +5,14 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recomputeProductRating } from "@/lib/reviews";
 import { sendReviewApprovedEmail } from "@/lib/email";
+import { isStaffRole } from "@/lib/roles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") return null;
+  if (!isStaffRole(session?.user?.role)) return null;
   return session;
 }
 
