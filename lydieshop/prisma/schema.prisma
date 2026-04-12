@@ -130,8 +130,33 @@ model Category {
   slug               String              @unique
   name               String
   image              String?
+  isActive           Boolean             @default(true)
+  position           Int                 @default(0)
   products           Product[]
   attributeTemplates AttributeTemplate[]
+}
+
+// ---------- PARAMÈTRES BOUTIQUE ----------
+
+// Singleton — un seul row en base, mis à jour par l'admin.
+model ShopSettings {
+  id                  String  @id @default("singleton")
+  shopName            String  @default("Lydie'shop")
+  contactEmail        String  @default("contact@lydie-shop.fr")
+  instagramUrl        String? @default("https://instagram.com/lydieshop")
+  tiktokUrl           String?
+  facebookUrl         String?
+  promoBarMessage     String? @default("Livraison offerte dès 60€ · Cadeau surprise dans chaque commande")
+  maintenanceMode     Boolean @default(false)
+  maintenanceMessage  String? @default("La boutique est en maintenance. Revenez bientôt !")
+  freeShippingThreshold Float @default(60)
+  colissimoPrice      Float   @default(5.90)
+  mondialRelayPrice   Float   @default(3.90)
+  chronopostPrice     Float   @default(12.90)
+  colissimoEnabled    Boolean @default(true)
+  mondialRelayEnabled Boolean @default(true)
+  chronopostEnabled   Boolean @default(true)
+  updatedAt           DateTime @updatedAt
 }
 
 // ---------- ATTRIBUTS DYNAMIQUES ----------

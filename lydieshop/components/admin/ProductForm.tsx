@@ -9,6 +9,7 @@ import {
   ImageDropzone,
   type UploadedImage,
 } from "@/components/admin/ImageDropzone";
+import { QualityScore } from "@/components/admin/QualityScore";
 
 type CategoryOption = { slug: string; name: string };
 
@@ -20,6 +21,7 @@ type GeneratedContent = {
   tags: string[];
   seoTitle: string;
   seoDesc: string;
+  attributes?: Record<string, string>;
 };
 
 export function ProductForm() {
@@ -128,6 +130,17 @@ export function ProductForm() {
       if (res.ok) {
         const data = (await res.json()) as GeneratedContent;
         setGenerated(data);
+        // Auto-fill attribute values from AI suggestions
+        if (data.attributes) {
+          setAttrValues((prev) => {
+            const next = { ...prev };
+            for (const t of attrTemplates) {
+              const aiVal = data.attributes?.[t.name];
+              if (aiVal && !next[t.id]) next[t.id] = aiVal;
+            }
+            return next;
+          });
+        }
         setStep(4);
       } else {
         const d = await res.json().catch(() => ({}));
@@ -538,6 +551,17 @@ export function ProductForm() {
               </p>
             </div>
           </label>
+
+          <QualityScore
+            photosCount={images.length}
+            descriptionLength={(generated?.description ?? "").split(/\s+/).length}
+            attributesFilled={Object.values(attrValues).filter((v) => v.trim()).length}
+            attributesTotal={attrTemplates.length}
+            hasSeoTitle={Boolean(generated?.seoTitle)}
+            hasSeoDesc={Boolean(generated?.seoDesc)}
+            hasComparePrice={Boolean(comparePrice)}
+            variantsCount={0}
+          />
 
           {publishError && (
             <p className="rounded-soft bg-rose-light/60 px-3 py-2 text-sm text-rose-dark">

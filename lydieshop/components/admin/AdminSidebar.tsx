@@ -6,13 +6,16 @@ import { useSession } from "next-auth/react";
 import {
   BarChart3,
   Box,
+  FolderTree,
   Home,
   Package,
+  Settings,
   Shield,
   ShoppingBag,
   Star,
   Tag,
   Users,
+  Wrench,
 } from "lucide-react";
 import { CrownIcon } from "@/components/ui/Crown";
 import { cx } from "@/lib/format";
@@ -21,11 +24,13 @@ import { isSuperAdmin } from "@/lib/roles";
 const commonItems = [
   { href: "/admin", label: "Tableau de bord", icon: Home },
   { href: "/admin/produits", label: "Produits", icon: Box },
+  { href: "/admin/categories", label: "Catégories", icon: FolderTree },
   { href: "/admin/commandes", label: "Commandes", icon: Package },
   { href: "/admin/clientes", label: "Clientes", icon: Users },
   { href: "/admin/promotions", label: "Promotions", icon: Tag },
   { href: "/admin/avis", label: "Avis", icon: Star },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/parametres", label: "Paramètres", icon: Wrench },
 ];
 
 const superAdminItems = [
