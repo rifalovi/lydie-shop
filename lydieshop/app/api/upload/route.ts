@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { cloudinary, CLOUDINARY_FOLDER } from "@/lib/cloudinary";
+import { cloudinary, CLOUDINARY_FOLDER, isCloudinaryConfigured } from "@/lib/cloudinary";
 import { isStaffRole } from "@/lib/roles";
 
 export const runtime = "nodejs";
@@ -25,13 +25,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  if (
-    !process.env.CLOUDINARY_CLOUD_NAME ||
-    !process.env.CLOUDINARY_API_KEY ||
-    !process.env.CLOUDINARY_API_SECRET
-  ) {
+  if (!isCloudinaryConfigured) {
     return NextResponse.json(
-      { error: "Cloudinary n'est pas configuré." },
+      {
+        error:
+          "Cloudinary n'est pas configuré. Définissez CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY et CLOUDINARY_API_SECRET (ou leurs variantes NEXT_PUBLIC_).",
+      },
       { status: 500 },
     );
   }

@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, Plus } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import {
   ImageDropzone,
   type UploadedImage,
 } from "@/components/admin/ImageDropzone";
+
+type CategoryOption = { slug: string; name: string };
 
 type GeneratedContent = {
   description: string;
@@ -36,6 +38,48 @@ export function ProductForm() {
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+
+  // Dynamic categories from DB
+  const [categories, setCategories] = useState<CategoryOption[]>([
+    { slug: "perruques", name: "Perruques" },
+    { slug: "tissages", name: "Tissages" },
+    { slug: "accessoires", name: "Accessoires" },
+    { slug: "cadeaux", name: "Cadeaux" },
+  ]);
+  const [showNewCat, setShowNewCat] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatSaving, setNewCatSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/categories");
+        if (res.ok) {
+          const data = (await res.json()) as { categories: CategoryOption[] };
+          if (data.categories.length > 0) setCategories(data.categories);
+        }
+      } catch { /* keep defaults */ }
+    })();
+  }, []);
+
+  const addCategory = async () => {
+    if (!newCatName.trim()) return;
+    setNewCatSaving(true);
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCatName.trim() }),
+      });
+      if (res.ok) {
+        const cat = (await res.json()) as CategoryOption;
+        setCategories((prev) => [...prev, cat].sort((a, b) => a.name.localeCompare(b.name)));
+        setCategory(cat.slug);
+        setNewCatName("");
+        setShowNewCat(false);
+      }
+    } finally { setNewCatSaving(false); }
+  };
 
   const generate = async () => {
     setGenerating(true);
@@ -185,16 +229,41 @@ export function ProductForm() {
             <label className="mb-1.5 block text-sm font-ui font-semibold text-ink">
               Catégorie
             </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="input-luxe"
-            >
-              <option value="perruques">Perruques</option>
-              <option value="tissages">Tissages</option>
-              <option value="accessoires">Accessoires</option>
-              <option value="cadeaux">Cadeaux</option>
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="input-luxe flex-1"
+              >
+                {categories.map((c) => (
+                  <option key={c.slug} value={c.slug}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowNewCat(!showNewCat)}
+                className="shrink-0 rounded-soft border border-borderSoft bg-white px-3 text-sm font-ui font-semibold text-rose-dark hover:bg-rose-light"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+            {showNewCat && (
+              <div className="mt-2 flex gap-2">
+                <Input
+                  placeholder="Nom de la catégorie"
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                />
+                <Button
+                  onClick={addCategory}
+                  disabled={newCatSaving || !newCatName.trim()}
+                >
+                  {newCatSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ajouter"}
+                </Button>
+              </div>
+            )}
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-ui font-semibold text-ink">
