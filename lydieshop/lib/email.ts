@@ -7,7 +7,15 @@ import { formatEUR } from "./format";
 const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
 
-const FROM = process.env.EMAIL_FROM ?? "Lydie'shop <noreply@lydieshop.com>";
+// Accepte EMAIL_FROM, RESEND_FROM_EMAIL, ou fallback vers le test sender
+// Resend. Pour envoyer depuis un domaine custom (contact@lydie-shop.fr),
+// le domaine doit être vérifié dans Resend Dashboard → Domains.
+const FROM =
+  process.env.EMAIL_FROM ??
+  process.env.RESEND_FROM_EMAIL ??
+  "Lydie'shop <onboarding@resend.dev>";
+
+export const isResendConfigured = Boolean(apiKey);
 
 type SendArgs = {
   to: string;

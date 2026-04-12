@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { randomBytes, createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { sendPasswordResetEmail } from "@/lib/email";
+import { sendPasswordResetEmail, isResendConfigured } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,9 +64,15 @@ export async function POST(req: NextRequest) {
       process.env.NEXTAUTH_URL?.replace(/\/$/, "") ?? "https://lydieshop.com";
     const resetUrl = `${baseUrl}/auth/reset-password?token=${rawToken}`;
 
-    // Best-effort : si Resend n'est pas configuré ou échoue, la requête reste
-    // un succès (on ne veut pas bloquer l'UX pour autant, et l'info qui
-    // pourrait filtrer d'un 500 est exactement ce qu'on veut cacher).
+    // Si Resend n'est pas configuré, on loggue le lien de reset dans les
+    // Vercel Functions Logs pour permettre le debug. En prod avec Resend,
+    // le lien part par email et le log n'affiche que la confirmation.
+    if (!isResendConfigured) {
+      console.warn(
+        `[/api/auth/forgot-password] RESEND_API_KEY absent — lien de reset (visible uniquement dans les logs serveur) :\n${resetUrl}`,
+      );
+    }
+
     sendPasswordResetEmail({
       to: user.email,
       customerName: user.name,

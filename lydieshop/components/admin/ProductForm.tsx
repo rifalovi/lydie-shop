@@ -38,6 +38,8 @@ export function ProductForm() {
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [stepError, setStepError] = useState<string | null>(null);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
   // Dynamic categories from DB
   const [categories, setCategories] = useState<CategoryOption[]>([
@@ -83,6 +85,7 @@ export function ProductForm() {
 
   const generate = async () => {
     setGenerating(true);
+    setGenerateError(null);
     try {
       const res = await fetch("/api/ai/generate-product", {
         method: "POST",
@@ -93,10 +96,30 @@ export function ProductForm() {
         const data = (await res.json()) as GeneratedContent;
         setGenerated(data);
         setStep(4);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setGenerateError(
+          d?.error ?? "Erreur lors de la génération. Vérifiez que OPENAI_API_KEY est configuré.",
+        );
       }
+    } catch {
+      setGenerateError("Erreur réseau. Réessayez.");
     } finally {
       setGenerating(false);
     }
+  };
+
+  const goToStep = (target: 1 | 2 | 3 | 4) => {
+    setStepError(null);
+    if (target === 2 && images.length === 0) {
+      setStepError("Ajoutez au moins une photo avant de continuer.");
+      return;
+    }
+    if (target === 3 && !productName.trim()) {
+      setStepError("Le nom du produit est requis.");
+      return;
+    }
+    setStep(target);
   };
 
   const publish = async () => {
@@ -205,11 +228,11 @@ export function ProductForm() {
           <div className="mt-6">
             <ImageDropzone value={images} onChange={setImages} />
           </div>
+          {stepError && step === 1 && (
+            <p className="mt-4 rounded-soft bg-rose-light/60 px-3 py-2 text-sm text-rose-dark">{stepError}</p>
+          )}
           <div className="mt-8 flex justify-end">
-            <Button
-              onClick={() => setStep(2)}
-              disabled={images.length === 0}
-            >
+            <Button onClick={() => goToStep(2)}>
               Suivant →
             </Button>
           </div>
@@ -277,11 +300,14 @@ export function ProductForm() {
               className="input-luxe resize-none"
             />
           </div>
+          {stepError && step === 2 && (
+            <p className="rounded-soft bg-rose-light/60 px-3 py-2 text-sm text-rose-dark">{stepError}</p>
+          )}
           <div className="flex justify-between">
-            <Button variant="secondary" onClick={() => setStep(1)}>
+            <Button variant="secondary" onClick={() => { setStepError(null); setStep(1); }}>
               ← Retour
             </Button>
-            <Button onClick={() => setStep(3)} disabled={!productName}>
+            <Button onClick={() => goToStep(3)}>
               Suivant →
             </Button>
           </div>
@@ -292,8 +318,8 @@ export function ProductForm() {
         <div className="card-luxe p-8">
           <h2 className="font-serif text-2xl">3. Génération par l&apos;IA</h2>
           <p className="mt-2 text-sm text-ink-muted">
-            Notre IA va rédiger une fiche produit complète, attractive et
-            optimisée SEO. Vous pourrez tout modifier à l&apos;étape suivante.
+            L&apos;IA rédige la fiche produit complète à partir du nom et des
+            informations que vous avez saisies. Vous pourrez tout modifier ensuite.
           </p>
 
           <div className="mt-6 rounded-luxe bg-gradient-royal p-8 text-white">
@@ -304,41 +330,51 @@ export function ProductForm() {
               </h3>
             </div>
             <ul className="mt-4 space-y-1 text-sm text-white/90">
-              <li>• Description longue et vendeuse</li>
+              <li>• Description longue et vendeuse (200-300 mots)</li>
               <li>• Accroche courte</li>
               <li>• Liste de caractéristiques</li>
               <li>• Instructions d&apos;entretien</li>
               <li>• Tags SEO et meta description</li>
             </ul>
+          </div>
+
+          {/* Bouton HORS du bloc violet pour le rendre plus visible */}
+          <div className="mt-6 flex flex-col items-center gap-3">
             <Button
-              className="mt-6 bg-white !text-rose-dark hover:!bg-cream"
+              size="lg"
+              className="w-full sm:w-auto"
               onClick={generate}
               disabled={generating}
             >
               {generating ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                   Génération en cours...
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" />
+                  <Sparkles className="h-5 w-5" />
                   Générer avec l&apos;IA
                 </>
               )}
             </Button>
+            {generateError && (
+              <p className="rounded-soft bg-rose-light/60 px-3 py-2 text-sm text-rose-dark">{generateError}</p>
+            )}
+            {generated && (
+              <p className="rounded-soft bg-gold-light/40 px-3 py-2 text-sm text-gold-dark">
+                Contenu généré avec succès — vous pouvez le voir à l&apos;étape suivante.
+              </p>
+            )}
           </div>
 
-          <div className="mt-6 flex justify-between">
-            <Button variant="secondary" onClick={() => setStep(2)}>
+          <div className="mt-8 flex justify-between">
+            <Button variant="secondary" onClick={() => { setStepError(null); setStep(2); }}>
               ← Retour
             </Button>
-            <button
-              onClick={() => setStep(4)}
-              className="text-sm text-ink-muted hover:underline"
-            >
-              Passer (remplir manuellement)
-            </button>
+            <Button variant="secondary" onClick={() => setStep(4)}>
+              {generated ? "Voir & publier →" : "Passer (remplir manuellement) →"}
+            </Button>
           </div>
         </div>
       )}
