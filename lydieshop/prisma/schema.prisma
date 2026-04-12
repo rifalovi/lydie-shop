@@ -38,6 +38,7 @@ model User {
   reviews             Review[]
   chatSessions        ChatSession[]
   passwordResetTokens PasswordResetToken[]
+  beautyProfile       BeautyProfile?
 }
 
 enum Role {
@@ -239,6 +240,22 @@ model Review {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
+}
+
+// ---------- PRÉFÉRENCES BEAUTÉ ----------
+
+model BeautyProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  hairType       String[] @default([])  // fins, épais, bouclés, lisses, crépus
+  desiredLength  String[] @default([])  // courte, mi-longue, longue, très longue
+  favoriteColors String[] @default([])  // noir, châtain, blond, miel, rouge, fantaisie
+  budgetRange    String?                // <100€, 100-200€, 200-300€, 300€+
+  occasions      String[] @default([])  // quotidien, travail, soirée, mariage, sport
+  notes          String?  @db.Text      // instructions libres
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // ---------- RÉINITIALISATION MOT DE PASSE ----------

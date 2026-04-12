@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { openai, MODEL_CHAT } from "@/lib/openai";
 import { buildChatSystemPrompt } from "@/lib/prompts";
 import { getFeaturedProducts } from "@/lib/products";
+import { prisma } from "@/lib/prisma";
 import type { ChatMessage } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
       sessionId?: string;
     };
 
-    const { messages } = body;
+    const { messages, userId } = body;
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(
         JSON.stringify({ error: "messages requis" }),
@@ -24,10 +25,49 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Contexte dynamique — en production, injecter le stock réel et la
-    // dernière commande de la cliente connectée depuis Prisma.
+    // Contexte dynamique : produits du moment + profil beauté de la cliente.
     const topProducts = getFeaturedProducts();
-    const systemPrompt = buildChatSystemPrompt({ topProducts });
+
+    let customerName: string | undefined;
+    let beautyProfile: {
+      hairType: string[];
+      desiredLength: string[];
+      favoriteColors: string[];
+      budgetRange: string | null;
+      occasions: string[];
+      notes: string | null;
+    } | null = null;
+
+    if (userId) {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            name: true,
+            beautyProfile: {
+              select: {
+                hairType: true,
+                desiredLength: true,
+                favoriteColors: true,
+                budgetRange: true,
+                occasions: true,
+                notes: true,
+              },
+            },
+          },
+        });
+        customerName = user?.name ?? undefined;
+        beautyProfile = user?.beautyProfile ?? null;
+      } catch {
+        // Si la DB pète, on continue sans contexte personnalisé.
+      }
+    }
+
+    const systemPrompt = buildChatSystemPrompt({
+      topProducts,
+      customerName,
+      beautyProfile,
+    });
 
     const stream = await openai.chat.completions.create({
       model: MODEL_CHAT,

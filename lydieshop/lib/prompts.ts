@@ -17,6 +17,14 @@ export const buildChatSystemPrompt = (opts: {
   topProducts?: Product[];
   customerName?: string;
   latestOrderStatus?: string;
+  beautyProfile?: {
+    hairType: string[];
+    desiredLength: string[];
+    favoriteColors: string[];
+    budgetRange: string | null;
+    occasions: string[];
+    notes: string | null;
+  } | null;
 }) => {
   const productsSnippet = (opts.topProducts ?? [])
     .slice(0, 8)
@@ -25,6 +33,20 @@ export const buildChatSystemPrompt = (opts: {
         `- ${p.name} · ${p.price}€ · ${p.categorySlug} · ${p.shortDesc}`,
     )
     .join("\n");
+
+  const bp = opts.beautyProfile;
+  const beautySnippet = bp
+    ? [
+        bp.hairType.length > 0 ? `Type de cheveux : ${bp.hairType.join(", ")}` : null,
+        bp.desiredLength.length > 0 ? `Longueur souhaitée : ${bp.desiredLength.join(", ")}` : null,
+        bp.favoriteColors.length > 0 ? `Couleurs préférées : ${bp.favoriteColors.join(", ")}` : null,
+        bp.budgetRange ? `Budget : ${bp.budgetRange}` : null,
+        bp.occasions.length > 0 ? `Occasions : ${bp.occasions.join(", ")}` : null,
+        bp.notes ? `Notes : ${bp.notes}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : null;
 
   return `Tu es Lydie, l'assistante virtuelle de Lydie'shop — "La boutique qui
 sublime les Reines". Tu es élégante, chaleureuse, et tu traites chaque cliente
@@ -56,6 +78,10 @@ hello@lydieshop.com. Ne jamais inventer de prix, stock ou délais.
 ${opts.customerName ? `CLIENTE ACTUELLE : ${opts.customerName}\n` : ""}${
     opts.latestOrderStatus
       ? `STATUT DE SA DERNIÈRE COMMANDE : ${opts.latestOrderStatus}\n`
+      : ""
+  }${
+    beautySnippet
+      ? `\nPRÉFÉRENCES BEAUTÉ DE LA CLIENTE (utilise-les pour personnaliser tes recommandations) :\n${beautySnippet}\n`
       : ""
   }
 NOS PRODUITS DU MOMENT :
