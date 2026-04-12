@@ -21,16 +21,19 @@ datasource db {
 // ---------- UTILISATEURS ----------
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String?
-  phone        String?
-  passwordHash String
-  role         Role     @default(CUSTOMER)
-  loyaltyPoints Int     @default(0)
-  tier         Tier     @default(ROSE)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                       String    @id @default(cuid())
+  email                    String    @unique
+  name                     String?
+  phone                    String?
+  passwordHash             String
+  role                     Role      @default(CUSTOMER)
+  loyaltyPoints            Int       @default(0)
+  tier                     Tier      @default(ROSE)
+  emailVerified            DateTime?
+  verificationToken        String?   @unique
+  verificationTokenExpiry  DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
   addresses           Address[]
   orders              Order[]

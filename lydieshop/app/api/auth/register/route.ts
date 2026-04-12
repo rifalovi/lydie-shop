@@ -3,7 +3,11 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { sendWelcomeEmail } from "@/lib/email";
+import {
+  sendVerificationEmail,
+  generateVerificationToken,
+  isResendConfigured,
+} from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,6 +86,10 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // Génère un token de vérification email (24h de validité).
+    const verificationToken = generateVerificationToken();
+    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
     const user = await prisma.user.create({
       data: {
         email: normalizedEmail,
@@ -90,16 +98,36 @@ export async function POST(req: NextRequest) {
         passwordHash,
         role: "CUSTOMER",
         loyaltyPoints: 100, // bonus d'inscription
+        emailVerified: null,
+        verificationToken,
+        verificationTokenExpiry,
       },
       select: { id: true, email: true, name: true },
     });
 
-    // Envoi best-effort, on ne bloque pas l'inscription si Resend échoue.
-    sendWelcomeEmail({ to: user.email, name: user.name }).catch((e) => {
-      console.error("[/api/auth/register] welcome email failed", describeError(e));
+    // Envoi de l'email de vérification.
+    const baseUrl =
+      process.env.NEXTAUTH_URL?.replace(/\/$/, "") ?? "https://lydie-shop.fr";
+    const verifyUrl = `${baseUrl}/auth/verify-email?token=${verificationToken}`;
+
+    if (!isResendConfigured) {
+      console.warn(
+        `[/api/auth/register] RESEND_API_KEY absent — lien de vérification :\n${verifyUrl}`,
+      );
+    }
+
+    sendVerificationEmail({
+      to: user.email,
+      name: user.name,
+      verifyUrl,
+    }).catch((e) => {
+      console.error("[/api/auth/register] verification email failed", describeError(e));
     });
 
-    return NextResponse.json({ user }, { status: 201 });
+    return NextResponse.json(
+      { user, requiresVerification: true },
+      { status: 201 },
+    );
   } catch (err) {
     const described = describeError(err);
     // Log exhaustif côté serveur — visible dans Vercel Functions logs.

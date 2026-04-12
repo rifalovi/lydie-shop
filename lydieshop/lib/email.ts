@@ -17,6 +17,12 @@ const FROM =
 
 export const isResendConfigured = Boolean(apiKey);
 
+// Génère un token de vérification — 32 octets, base64url, 43 chars.
+export function generateVerificationToken(): string {
+  const { randomBytes } = require("crypto") as typeof import("crypto");
+  return randomBytes(32).toString("base64url");
+}
+
 type SendArgs = {
   to: string;
   subject: string;
@@ -96,6 +102,37 @@ export type OrderEmailItem = {
   quantity: number;
   price: number;
 };
+
+export async function sendVerificationEmail(args: {
+  to: string;
+  name?: string | null;
+  verifyUrl: string;
+}) {
+  const firstName = args.name?.split(" ")[0] ?? "Reine";
+  const html = baseLayout(
+    "Confirmez votre email",
+    `
+    <p>Bonjour <strong>${firstName}</strong>,</p>
+    <p>Bienvenue chez <strong>Lydie'shop</strong> ! Pour activer votre compte et profiter de votre code <strong>REINE10</strong> (-10% sur votre première commande), confirmez votre adresse email :</p>
+    <p style="text-align:center;margin:32px 0;">
+      <a href="${args.verifyUrl}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#F8C8D4 0%,#C9A84C 100%);color:#ffffff;text-decoration:none;border-radius:999px;font-weight:bold;font-size:16px;">
+        Confirmer mon email
+      </a>
+    </p>
+    <p style="color:#7A6770;font-size:13px;">Si le bouton ne fonctionne pas, copiez ce lien :<br/>
+      <span style="word-break:break-all;color:#9A7A2E;">${args.verifyUrl}</span>
+    </p>
+    <p style="margin-top:20px;color:#7A6770;font-size:13px;">Ce lien est valable <strong>24 heures</strong>. Si vous n'avez pas créé de compte, ignorez simplement cet email.</p>
+    <p style="margin-top:24px;">L'équipe Lydie'shop</p>
+    `,
+  );
+
+  await safeSend({
+    to: args.to,
+    subject: "Confirmez votre email — Lydie'shop 👑",
+    html,
+  });
+}
 
 export async function sendPasswordResetEmail(args: {
   to: string;

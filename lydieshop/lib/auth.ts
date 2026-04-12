@@ -73,6 +73,7 @@ export const authOptions: NextAuthOptions = {
             email: user.email,
             name: user.name ?? undefined,
             role: user.role,
+            emailVerified: Boolean(user.emailVerified),
           };
         } catch (err) {
           // Log exhaustif côté serveur uniquement. Le client voit le même
@@ -88,10 +89,24 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = (user as { id: string }).id;
         token.role = (user as { role: "CUSTOMER" | "ADMIN" | "SUPER_ADMIN" }).role;
+        token.emailVerified = (user as { emailVerified: boolean }).emailVerified;
+      }
+      // On update (e.g. after email verification), refresh from DB.
+      if (trigger === "update") {
+        try {
+          const fresh = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { role: true, emailVerified: true },
+          });
+          if (fresh) {
+            token.role = fresh.role as "CUSTOMER" | "ADMIN" | "SUPER_ADMIN";
+            token.emailVerified = Boolean(fresh.emailVerified);
+          }
+        } catch { /* keep existing values */ }
       }
       return token;
     },
@@ -99,6 +114,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as "CUSTOMER" | "ADMIN" | "SUPER_ADMIN";
+        session.user.emailVerified = token.emailVerified as boolean;
       }
       return session;
     },

@@ -61,12 +61,14 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (!signin || signin.error) {
-      // Compte créé mais signIn KO → renvoyer vers login
-      router.push("/login");
+      // Compte créé mais signIn KO → renvoyer vers check-email quand même
+      router.push("/auth/check-email");
       return;
     }
 
-    router.push("/compte");
+    // Redirige vers la page de vérification email (pas /compte, car l'email
+    // n'est pas encore vérifié et le middleware y bloquera l'accès).
+    router.push("/auth/check-email");
     router.refresh();
   };
 
