@@ -15,6 +15,12 @@ export type ProductVariant = {
   price?: number;
 };
 
+export type ProductAttributeDisplay = {
+  name: string;
+  value: string;
+  unit?: string | null;
+};
+
 export type Product = {
   id: string;
   slug: string;
@@ -34,6 +40,7 @@ export type Product = {
   reviewCount: number;
   features: string[];
   careInstructions: string;
+  dynamicAttributes?: ProductAttributeDisplay[];
 };
 
 export type CartLine = {

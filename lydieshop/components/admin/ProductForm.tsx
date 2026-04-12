@@ -41,6 +41,39 @@ export function ProductForm() {
   const [stepError, setStepError] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
+  // Dynamic attributes per category
+  type AttrTemplate = {
+    id: string;
+    name: string;
+    type: string;
+    unit: string | null;
+    options: string[];
+    isRequired: boolean;
+  };
+  const [attrTemplates, setAttrTemplates] = useState<AttrTemplate[]>([]);
+  const [attrValues, setAttrValues] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!category) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/attributes?categorySlug=${category}`);
+        if (res.ok) {
+          const data = (await res.json()) as { templates: AttrTemplate[] };
+          setAttrTemplates(data.templates);
+          // Keep existing values, init missing ones to ""
+          setAttrValues((prev) => {
+            const next = { ...prev };
+            data.templates.forEach((t) => {
+              if (!(t.id in next)) next[t.id] = "";
+            });
+            return next;
+          });
+        }
+      } catch { /* keep empty */ }
+    })();
+  }, [category]);
+
   // Dynamic categories from DB
   const [categories, setCategories] = useState<CategoryOption[]>([
     { slug: "perruques", name: "Perruques" },
@@ -165,6 +198,9 @@ export function ProductForm() {
       isFeatured,
       isNew: true,
       images: images.map((img) => ({ url: img.url })),
+      attributes: Object.entries(attrValues)
+        .filter(([, v]) => v.trim())
+        .map(([templateId, value]) => ({ templateId, value })),
     };
 
     setPublishing(true);
@@ -300,6 +336,53 @@ export function ProductForm() {
               className="input-luxe resize-none"
             />
           </div>
+
+          {/* Dynamic attributes for this category */}
+          {attrTemplates.length > 0 && (
+            <div className="rounded-luxe border border-gold/40 bg-gradient-rose-soft p-5">
+              <p className="mb-3 font-ui text-xs font-bold uppercase tracking-widest text-gold-dark">
+                Caractéristiques — {categories.find((c) => c.slug === category)?.name ?? category}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {attrTemplates.map((t) => {
+                  const val = attrValues[t.id] ?? "";
+                  const setVal = (v: string) =>
+                    setAttrValues((prev) => ({ ...prev, [t.id]: v }));
+
+                  if (t.type === "SELECT" && t.options.length > 0) {
+                    return (
+                      <div key={t.id}>
+                        <label className="mb-1 block text-xs font-ui font-semibold text-ink">
+                          {t.name} {t.unit ? `(${t.unit})` : ""} {t.isRequired && <span className="text-rose-dark">*</span>}
+                        </label>
+                        <select value={val} onChange={(e) => setVal(e.target.value)} className="input-luxe text-sm">
+                          <option value="">— Choisir —</option>
+                          {t.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      </div>
+                    );
+                  }
+                  if (t.type === "NUMBER") {
+                    return (
+                      <Input key={t.id} label={`${t.name}${t.unit ? ` (${t.unit})` : ""}`} type="number" value={val} onChange={(e) => setVal(e.target.value)} placeholder={t.unit ?? ""} />
+                    );
+                  }
+                  if (t.type === "BOOLEAN") {
+                    return (
+                      <label key={t.id} className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={val === "true"} onChange={(e) => setVal(e.target.checked ? "true" : "false")} className="accent-rose-dark" />
+                        {t.name}
+                      </label>
+                    );
+                  }
+                  return (
+                    <Input key={t.id} label={t.name} value={val} onChange={(e) => setVal(e.target.value)} />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {stepError && step === 2 && (
             <p className="rounded-soft bg-rose-light/60 px-3 py-2 text-sm text-rose-dark">{stepError}</p>
           )}

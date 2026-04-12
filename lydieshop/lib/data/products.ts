@@ -9,6 +9,12 @@ const productInclude = {
   category: true,
   images: { orderBy: { position: "asc" as const } },
   variants: true,
+  attributes: {
+    include: {
+      template: { select: { name: true, type: true, unit: true } },
+    },
+    orderBy: { template: { position: "asc" as const } },
+  },
 };
 
 type DbProduct = Prisma.ProductGetPayload<{ include: typeof productInclude }>;
@@ -40,6 +46,19 @@ function toUiProduct(p: DbProduct): Product {
     reviewCount: p.reviewCount,
     features: p.features,
     careInstructions: p.careInstructions ?? "",
+    dynamicAttributes:
+      "attributes" in p && Array.isArray((p as Record<string, unknown>).attributes)
+        ? (
+            (p as Record<string, unknown>).attributes as Array<{
+              value: string;
+              template: { name: string; unit: string | null };
+            }>
+          ).map((a) => ({
+            name: a.template.name,
+            value: a.value,
+            unit: a.template.unit,
+          }))
+        : [],
   };
 }
 
@@ -67,6 +86,8 @@ export async function listProducts(opts: {
   categorySlug?: string;
   sort?: Sort;
   query?: string;
+  // Key = attribute template name (e.g. "Texture"), value = desired value.
+  attributeFilters?: Record<string, string>;
 } = {}): Promise<Product[]> {
   const query = opts.query?.trim();
 
@@ -81,10 +102,26 @@ export async function listProducts(opts: {
       }
     : undefined;
 
+  // Attribute filters: each entry means "product must have an attribute whose
+  // template.name = key AND value = val".
+  const attrFilters = opts.attributeFilters
+    ? Object.entries(opts.attributeFilters)
+        .filter(([, v]) => v)
+        .map(([name, value]) => ({
+          attributes: {
+            some: {
+              value,
+              template: { name },
+            },
+          },
+        }))
+    : [];
+
   const where: Prisma.ProductWhereInput = {
     isActive: true,
     ...(opts.categorySlug ? { category: { slug: opts.categorySlug } } : {}),
     ...(searchFilter ?? {}),
+    ...(attrFilters.length > 0 ? { AND: attrFilters } : {}),
   };
 
   const rows = await prisma.product.findMany({

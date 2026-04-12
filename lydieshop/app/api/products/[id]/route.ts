@@ -26,6 +26,9 @@ const UpdateSchema = z.object({
   isNew: z.boolean().optional(),
   isActive: z.boolean().optional(),
   images: z.array(z.object({ url: z.string().url() })).optional(),
+  attributes: z
+    .array(z.object({ templateId: z.string(), value: z.string() }))
+    .optional(),
 });
 
 // GET /api/products/[id] — public, used by the edit page to load data.
@@ -39,6 +42,9 @@ export async function GET(
       category: { select: { slug: true } },
       images: { orderBy: { position: "asc" } },
       variants: true,
+      attributes: {
+        include: { template: { select: { name: true, type: true, unit: true } } },
+      },
     },
   });
   if (!product) {
@@ -105,8 +111,13 @@ export async function PATCH(
 
   try {
     await prisma.$transaction(async (tx) => {
-      // Update product fields.
-      const { images: _images, categorySlug: _cs, ...fields } = data;
+      // Update product fields — strip out nested writes that are handled separately.
+      const {
+        images: _images,
+        categorySlug: _cs,
+        attributes: _attrs,
+        ...fields
+      } = data;
       await tx.product.update({
         where: { id: params.id },
         data: {
@@ -115,8 +126,7 @@ export async function PATCH(
         },
       });
 
-      // Sync images: delete all, recreate from payload to reflect new
-      // ordering and additions/removals.
+      // Sync images: delete all, recreate from payload.
       if (data.images) {
         await tx.productImage.deleteMany({ where: { productId: params.id } });
         if (data.images.length > 0) {
@@ -125,6 +135,21 @@ export async function PATCH(
               productId: params.id,
               url: img.url,
               position,
+            })),
+          });
+        }
+      }
+
+      // Sync attributes: delete all, recreate non-empty values.
+      if (data.attributes) {
+        await tx.productAttribute.deleteMany({ where: { productId: params.id } });
+        const nonEmpty = data.attributes.filter((a) => a.value.trim());
+        if (nonEmpty.length > 0) {
+          await tx.productAttribute.createMany({
+            data: nonEmpty.map((a) => ({
+              productId: params.id,
+              templateId: a.templateId,
+              value: a.value.trim(),
             })),
           });
         }

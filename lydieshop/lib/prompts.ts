@@ -95,7 +95,31 @@ export const buildProductGenerationPrompt = (opts: {
   productName: string;
   category: string;
   additionalInfo?: string;
-}) => `Tu es un expert en rédaction e-commerce pour une boutique de perruques
+  attributeTemplates?: Array<{ name: string; type: string; options: string[] }>;
+}) => {
+  const attrList = (opts.attributeTemplates ?? [])
+    .map(
+      (t) =>
+        `  "${t.name}": "${
+          t.options.length > 0
+            ? `une des valeurs : ${t.options.join(", ")}`
+            : t.type === "NUMBER"
+              ? "valeur numérique"
+              : t.type === "BOOLEAN"
+                ? "true ou false"
+                : "texte libre"
+        }"`,
+    )
+    .join(",\n");
+
+  const attrBlock = attrList
+    ? `,
+  "attributes": {
+${attrList}
+  }`
+    : "";
+
+  return `Tu es un expert en rédaction e-commerce pour une boutique de perruques
 et tissages capillaires haut de gamme appelée Lydie'shop.
 
 ${STORE_CONTEXT}
@@ -113,9 +137,9 @@ Réponds UNIQUEMENT en JSON avec cette structure exacte :
   "careInstructions": "Instructions d'entretien détaillées (2-3 phrases)",
   "tags": ["tag1", "tag2", "tag3", "tag4"],
   "seoTitle": "Titre SEO optimisé (max 60 caractères)",
-  "seoDesc": "Meta description SEO (max 155 caractères)",
-  "suggestedCategories": ["cat1", "cat2"]
+  "seoDesc": "Meta description SEO (max 155 caractères)"${attrBlock}
 }
 
 La réponse doit être en français, élégante, vendeuse, et parfaitement adaptée
 à une cliente haut de gamme.`;
+};

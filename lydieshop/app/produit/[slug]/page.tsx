@@ -148,16 +148,36 @@ export default async function ProductPage({
           <p className="mt-2 text-ink-muted">{product.careInstructions}</p>
         </div>
 
-        <div className="card-luxe h-fit p-6">
-          <h3 className="font-serif text-xl">Caractéristiques</h3>
-          <ul className="mt-4 space-y-2 text-sm">
-            {product.features.map((f) => (
-              <li key={f} className="flex items-start gap-2">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-                {f}
-              </li>
-            ))}
-          </ul>
+        <div className="space-y-6">
+          <div className="card-luxe h-fit p-6">
+            <h3 className="font-serif text-xl">Caractéristiques</h3>
+            <ul className="mt-4 space-y-2 text-sm">
+              {product.features.map((f) => (
+                <li key={f} className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {product.dynamicAttributes && product.dynamicAttributes.length > 0 && (
+            <div className="card-luxe h-fit p-6">
+              <h3 className="font-serif text-xl">Fiche technique</h3>
+              <table className="mt-4 w-full text-sm">
+                <tbody>
+                  {product.dynamicAttributes.map((a) => (
+                    <tr key={a.name} className="border-b border-borderSoft/60 last:border-0">
+                      <td className="py-2 pr-4 font-ui font-semibold text-ink-muted">{a.name}</td>
+                      <td className="py-2 text-ink">
+                        {a.value}{a.unit ? ` ${a.unit}` : ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 

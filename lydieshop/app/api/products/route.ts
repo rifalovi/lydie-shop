@@ -63,6 +63,9 @@ const CreateProductSchema = z.object({
   images: z
     .array(z.object({ url: z.string().url() }))
     .min(1, "Au moins une image est requise."),
+  attributes: z
+    .array(z.object({ templateId: z.string(), value: z.string() }))
+    .default([]),
 });
 
 // S'assure qu'un slug est unique en appendant -2, -3, ... si besoin.
@@ -143,6 +146,18 @@ export async function POST(req: NextRequest) {
             position,
           })),
         },
+        ...(data.attributes.length > 0
+          ? {
+              attributes: {
+                create: data.attributes
+                  .filter((a) => a.value.trim())
+                  .map((a) => ({
+                    templateId: a.templateId,
+                    value: a.value.trim(),
+                  })),
+              },
+            }
+          : {}),
       },
       select: { id: true, slug: true },
     });

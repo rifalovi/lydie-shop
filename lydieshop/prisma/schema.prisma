@@ -94,9 +94,10 @@ model Product {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  category      Category        @relation(fields: [categoryId], references: [id])
+  category      Category          @relation(fields: [categoryId], references: [id])
   images        ProductImage[]
   variants      ProductVariant[]
+  attributes    ProductAttribute[]
   orderItems    OrderItem[]
   wishlistItems WishlistItem[]
   reviews       Review[]
@@ -125,11 +126,50 @@ model ProductImage {
 }
 
 model Category {
-  id       String    @id @default(cuid())
-  slug     String    @unique
-  name     String
-  image    String?
-  products Product[]
+  id                 String              @id @default(cuid())
+  slug               String              @unique
+  name               String
+  image              String?
+  products           Product[]
+  attributeTemplates AttributeTemplate[]
+}
+
+// ---------- ATTRIBUTS DYNAMIQUES ----------
+
+enum AttributeType {
+  TEXT
+  SELECT
+  NUMBER
+  BOOLEAN
+}
+
+model AttributeTemplate {
+  id         String        @id @default(cuid())
+  categoryId String
+  name       String
+  type       AttributeType @default(TEXT)
+  unit       String?
+  options    String[]      @default([])
+  isRequired Boolean       @default(false)
+  position   Int           @default(0)
+
+  category Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  values   ProductAttribute[]
+
+  @@unique([categoryId, name])
+  @@index([categoryId])
+}
+
+model ProductAttribute {
+  id         String @id @default(cuid())
+  productId  String
+  templateId String
+  value      String
+
+  product  Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  template AttributeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, templateId])
 }
 
 // ---------- COMMANDES ----------
