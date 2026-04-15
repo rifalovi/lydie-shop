@@ -116,13 +116,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    sendVerificationEmail({
-      to: user.email,
-      name: user.name,
-      verifyUrl,
-    }).catch((e) => {
-      console.error("[/api/auth/register] verification email failed", describeError(e));
-    });
+    // Await (au lieu de fire-and-forget) — sur Vercel serverless, le process
+    // peut se terminer avant que la promesse background ne flush la requête
+    // HTTP vers Resend.
+    try {
+      await sendVerificationEmail({
+        to: user.email,
+        name: user.name,
+        verifyUrl,
+      });
+    } catch (e) {
+      console.error(
+        "[/api/auth/register] verification email failed",
+        describeError(e),
+      );
+      // On ne fait pas échouer l'inscription pour autant — l'utilisatrice
+      // peut renvoyer l'email depuis /auth/check-email.
+    }
 
     return NextResponse.json(
       { user, requiresVerification: true },

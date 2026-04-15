@@ -1,10 +1,13 @@
 import { Resend } from "resend";
 import { formatEUR } from "./format";
 
-// Resend est instancié uniquement si la clé est présente : ainsi le build et
-// le dev local fonctionnent même sans clé. Les envois seront silencieusement
-// ignorés et loggés.
-const apiKey = process.env.RESEND_API_KEY;
+// On accepte plusieurs noms de variable d'env pour la clé API Resend
+// (au cas où elle serait mal nommée côté hébergeur).
+const apiKey =
+  process.env.RESEND_API_KEY ??
+  process.env.RESEND_KEY ??
+  process.env.NEXT_PUBLIC_RESEND_API_KEY;
+
 const resend = apiKey ? new Resend(apiKey) : null;
 
 // Accepte EMAIL_FROM, RESEND_FROM_EMAIL, ou fallback vers le test sender
@@ -16,6 +19,19 @@ const FROM =
   "Lydie'shop <onboarding@resend.dev>";
 
 export const isResendConfigured = Boolean(apiKey);
+
+// Diagnostic visible dans Vercel Functions Logs au moindre envoi —
+// confirme que le code charge bien les bonnes env vars.
+function logConfigOnce() {
+  if ((logConfigOnce as { done?: boolean }).done) return;
+  (logConfigOnce as { done?: boolean }).done = true;
+  console.log("[email] configuration", {
+    hasApiKey: Boolean(apiKey),
+    apiKeyPrefix: apiKey ? apiKey.slice(0, 6) + "…" : null,
+    apiKeyLength: apiKey?.length ?? 0,
+    from: FROM,
+  });
+}
 
 // Génère un token de vérification — 32 octets, base64url, 43 chars.
 export function generateVerificationToken(): string {
@@ -30,16 +46,59 @@ type SendArgs = {
 };
 
 async function safeSend({ to, subject, html }: SendArgs) {
+  logConfigOnce();
+
   if (!resend) {
     console.warn(
       `[email] RESEND_API_KEY manquant — email "${subject}" non envoyé à ${to}`,
     );
     return;
   }
+
+  // IMPORTANT : resend.emails.send NE JETTE PAS d'exception sur les erreurs
+  // de l'API Resend (domaine non vérifié, FROM invalide, rate limit, etc.).
+  // Il résout avec { data: null, error: {...} }. Il faut donc inspecter la
+  // réponse à la main, sinon on croit que l'envoi a réussi alors que rien
+  // ne part. C'était précisément le symptôme "200 OK mais no outgoing
+  // request" observé en prod.
+  console.log(
+    `[email] → send "${subject}" to=${to} from=${FROM}`,
+  );
+
   try {
-    await resend.emails.send({ from: FROM, to, subject, html });
+    const { data, error } = await resend.emails.send({
+      from: FROM,
+      to,
+      subject,
+      html,
+    });
+
+    if (error) {
+      console.error("[email] Resend API error", {
+        to,
+        subject,
+        from: FROM,
+        name: error.name,
+        message: error.message,
+        // @ts-expect-error — certains champs de l'erreur Resend ne sont pas typés
+        statusCode: (error as Record<string, unknown>).statusCode,
+      });
+      // On re-throw pour que le .catch() côté caller soit notifié.
+      throw new Error(`Resend API error: ${error.message}`);
+    }
+
+    console.log("[email] ✓ sent", { to, subject, id: data?.id });
+    return data;
   } catch (err) {
-    console.error("[email] envoi échoué", err);
+    console.error("[email] envoi échoué", {
+      to,
+      subject,
+      error:
+        err instanceof Error
+          ? { name: err.name, message: err.message }
+          : String(err),
+    });
+    throw err;
   }
 }
 

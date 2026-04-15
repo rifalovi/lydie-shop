@@ -102,17 +102,19 @@ export async function PATCH(req: NextRequest) {
   if (action === "approve" && review.user.email) {
     const baseUrl =
       process.env.NEXTAUTH_URL?.replace(/\/$/, "") ?? "https://lydieshop.com";
-    sendReviewApprovedEmail({
-      to: review.user.email,
-      customerName: review.user.name,
-      productName: review.product.name,
-      productUrl: `${baseUrl}/produit/${review.product.slug}`,
-      rating: review.rating,
-      title: review.title,
-      comment: review.comment,
-    }).catch((e) =>
-      console.error("[admin/reviews PATCH] email error", e),
-    );
+    try {
+      await sendReviewApprovedEmail({
+        to: review.user.email,
+        customerName: review.user.name,
+        productName: review.product.name,
+        productUrl: `${baseUrl}/produit/${review.product.slug}`,
+        rating: review.rating,
+        title: review.title,
+        comment: review.comment,
+      });
+    } catch (e) {
+      console.error("[admin/reviews PATCH] email error", e);
+    }
   }
 
   return NextResponse.json({ ok: true });

@@ -71,13 +71,15 @@ export async function POST() {
     );
   }
 
-  sendVerificationEmail({
-    to: user.email,
-    name: user.name,
-    verifyUrl,
-  }).catch((e) =>
-    console.error("[resend-verification] email error", e),
-  );
+  try {
+    await sendVerificationEmail({
+      to: user.email,
+      name: user.name,
+      verifyUrl,
+    });
+  } catch (e) {
+    console.error("[resend-verification] email error", e);
+  }
 
   return NextResponse.json({ ok: true });
 }

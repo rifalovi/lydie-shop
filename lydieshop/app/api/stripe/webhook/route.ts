@@ -165,19 +165,23 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       country?: string;
     };
 
-    sendOrderConfirmationEmail({
-      to: customerEmail,
-      orderNumber: order.orderNumber,
-      items: order.items.map((it) => ({
-        name: it.name,
-        quantity: it.quantity,
-        price: Number(it.price),
-      })),
-      subtotal: Number(order.subtotal),
-      shippingCost: Number(order.shippingCost),
-      discount: Number(order.discount),
-      total: Number(order.total),
-      shippingAddress: address,
-    }).catch((e) => console.error("[stripe webhook] email error", e));
+    try {
+      await sendOrderConfirmationEmail({
+        to: customerEmail,
+        orderNumber: order.orderNumber,
+        items: order.items.map((it) => ({
+          name: it.name,
+          quantity: it.quantity,
+          price: Number(it.price),
+        })),
+        subtotal: Number(order.subtotal),
+        shippingCost: Number(order.shippingCost),
+        discount: Number(order.discount),
+        total: Number(order.total),
+        shippingAddress: address,
+      });
+    } catch (e) {
+      console.error("[stripe webhook] email error", e);
+    }
   }
 }

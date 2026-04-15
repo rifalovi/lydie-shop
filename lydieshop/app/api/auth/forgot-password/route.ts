@@ -67,19 +67,34 @@ export async function POST(req: NextRequest) {
     // Si Resend n'est pas configuré, on loggue le lien de reset dans les
     // Vercel Functions Logs pour permettre le debug. En prod avec Resend,
     // le lien part par email et le log n'affiche que la confirmation.
+    console.log("[/api/auth/forgot-password] sending reset email", {
+      to: user.email,
+      resendConfigured: isResendConfigured,
+    });
+
     if (!isResendConfigured) {
       console.warn(
         `[/api/auth/forgot-password] RESEND_API_KEY absent — lien de reset (visible uniquement dans les logs serveur) :\n${resetUrl}`,
       );
     }
 
-    sendPasswordResetEmail({
-      to: user.email,
-      customerName: user.name,
-      resetUrl,
-    }).catch((err) =>
-      console.error("[/api/auth/forgot-password] email error", err),
-    );
+    // On AWAIT l'envoi ici (au lieu du .catch() fire-and-forget précédent)
+    // parce que sur Vercel serverless, le process peut se terminer avant que
+    // la promesse background n'ait envoyé la requête HTTP à Resend — c'est
+    // exactement le symptôme "No outgoing requests dans les logs Vercel".
+    // Les 200 OK restent rapides (<1s pour un appel Resend en temps normal),
+    // donc l'impact UX est nul.
+    try {
+      await sendPasswordResetEmail({
+        to: user.email,
+        customerName: user.name,
+        resetUrl,
+      });
+    } catch (err) {
+      console.error("[/api/auth/forgot-password] email error", err);
+      // On ne fait pas échouer la requête côté client (anti-énumération),
+      // mais le log capture tout.
+    }
   }
 
   return NextResponse.json({ ok: true });
